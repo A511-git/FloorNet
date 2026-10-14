@@ -48,8 +48,10 @@ def _install_tflearn_shim():
         return _is_training[0]
 
     class _Layers(object):
-        normalization = types.SimpleNamespace(batch_normalization=batch_normalization)
-        max_pool_2d = staticmethod(max_pool_2d)
+        pass
+
+    _Layers.normalization = types.SimpleNamespace(batch_normalization=batch_normalization)
+    _Layers.max_pool_2d = staticmethod(max_pool_2d)
 
     class _TflearnShim(object):
         layers = _Layers()
