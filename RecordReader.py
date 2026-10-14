@@ -1,4 +1,14 @@
 import tensorflow as tf
+
+try:
+    _parse_example = tf.parse_single_example
+    _fixed_len = tf.FixedLenFeature
+    _decode_raw = tf.decode_raw
+except AttributeError:
+    _parse_example = tf.io.parse_single_example
+    _fixed_len = tf.io.FixedLenFeature
+    _decode_raw = tf.io.decode_raw
+
 import numpy as np
 import threading
 import PIL.Image as Image
@@ -17,33 +27,33 @@ NUM_THREADS = 8
 
 def parse_fn(example, augmentation, readImageFeatures = False, convertCorners=False, kernelSize=11):
     if readImageFeatures:
-        features = tf.parse_single_example(
+        features = _parse_example(
             example,
             # Defaults are not specified since both keys are required.
             features={
-                'image_path': tf.FixedLenFeature([], tf.string),
-                'points': tf.FixedLenFeature([NUM_POINTS * (NUM_INPUT_CHANNELS - 1)], tf.float32),
-                'point_indices': tf.FixedLenFeature([NUM_POINTS], tf.int64),
-                'corner': tf.FixedLenFeature([MAX_NUM_CORNERS * 3], tf.int64),
-                'num_corners': tf.FixedLenFeature([], tf.int64),
-                'icon': tf.FixedLenFeature([], tf.string),
-                'room': tf.FixedLenFeature([], tf.string),
-                'image': tf.FixedLenFeature(sum([size * size * numChannels for size, numChannels in list(zip(SIZES, NUM_CHANNELS))[1:]]), tf.float32),
-                'flags': tf.FixedLenFeature([2], tf.int64),
+                'image_path': _fixed_len([], tf.string),
+                'points': _fixed_len([NUM_POINTS * (NUM_INPUT_CHANNELS - 1)], tf.float32),
+                'point_indices': _fixed_len([NUM_POINTS], tf.int64),
+                'corner': _fixed_len([MAX_NUM_CORNERS * 3], tf.int64),
+                'num_corners': _fixed_len([], tf.int64),
+                'icon': _fixed_len([], tf.string),
+                'room': _fixed_len([], tf.string),
+                'image': _fixed_len(sum([size * size * numChannels for size, numChannels in list(zip(SIZES, NUM_CHANNELS))[1:]]), tf.float32),
+                'flags': _fixed_len([2], tf.int64),
             })
     else:
-        features = tf.parse_single_example(
+        features = _parse_example(
             example,
             # Defaults are not specified since both keys are required.
             features={
-                'image_path': tf.FixedLenFeature([], tf.string),
-                'points': tf.FixedLenFeature([NUM_POINTS * (NUM_INPUT_CHANNELS - 1)], tf.float32),
-                'point_indices': tf.FixedLenFeature([NUM_POINTS], tf.int64),
-                'corner': tf.FixedLenFeature([MAX_NUM_CORNERS * 3], tf.int64),
-                'num_corners': tf.FixedLenFeature([], tf.int64),
-                'icon': tf.FixedLenFeature([], tf.string),
-                'room': tf.FixedLenFeature([], tf.string),
-                'flags': tf.FixedLenFeature([2], tf.int64),
+                'image_path': _fixed_len([], tf.string),
+                'points': _fixed_len([NUM_POINTS * (NUM_INPUT_CHANNELS - 1)], tf.float32),
+                'point_indices': _fixed_len([NUM_POINTS], tf.int64),
+                'corner': _fixed_len([MAX_NUM_CORNERS * 3], tf.int64),
+                'num_corners': _fixed_len([], tf.int64),
+                'icon': _fixed_len([], tf.string),
+                'room': _fixed_len([], tf.string),
+                'flags': _fixed_len([2], tf.int64),
             })
         pass
 
@@ -54,8 +64,8 @@ def parse_fn(example, augmentation, readImageFeatures = False, convertCorners=Fa
     corners = tf.cast(tf.reshape(features['corner'], [MAX_NUM_CORNERS, 3]), tf.int32)
     numCorners = features['num_corners']
     corners = corners[:numCorners]
-    iconSegmentation = tf.reshape(tf.decode_raw(features['icon'], tf.uint8), (HEIGHT, WIDTH, 1))
-    roomSegmentation = tf.reshape(tf.decode_raw(features['room'], tf.uint8), (HEIGHT, WIDTH, 1))
+    iconSegmentation = tf.reshape(_decode_raw(features['icon'], tf.uint8), (HEIGHT, WIDTH, 1))
+    roomSegmentation = tf.reshape(_decode_raw(features['room'], tf.uint8), (HEIGHT, WIDTH, 1))
     heatmaps = tf.stack([iconSegmentation, roomSegmentation], axis=0)
 
     if readImageFeatures:

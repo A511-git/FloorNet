@@ -92,9 +92,8 @@ def run_inference(tfrecord_path, out_dir, scene_name, checkpoint_dir, gpu="0", s
 
     from middleware.tf_setup import configure
 
-    configure()
+    configure()  # tflearn shim + tf.contrib.slim before train import
     import tensorflow.compat.v1 as tf
-    import tflearn  # noqa: F401 — shim installed by configure()
 
     from RecordReader import getDatasetVal
     from train import build_graph, build_loss, parse_args

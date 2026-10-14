@@ -89,30 +89,45 @@ def resolve_inference_python(explicit=None):
 
 
 def tensorflow_usable(python_exe):
+    """Return (ok, detail_message)."""
+    if os.path.normpath(python_exe) == os.path.normpath(sys.executable):
+        from middleware.deps_check import verify_tensorflow_backend
+
+        return verify_tensorflow_backend(REPO_ROOT)
+
     code = (
-        "import sys; sys.path.insert(0, r'%s'); "
-        "from middleware.tf_setup import configure; configure(); "
-        "import tensorflow.compat.v1 as tf; import tf_slim"
-    ) % REPO_ROOT.replace("\\", "\\\\")
+        "import sys; sys.path.insert(0, %r); "
+        "from middleware.deps_check import verify_tensorflow_backend; "
+        "ok, msg = verify_tensorflow_backend(); "
+        "print(msg); raise SystemExit(0 if ok else 1)"
+    ) % REPO_ROOT
     try:
-        subprocess.run(
+        proc = subprocess.run(
             [python_exe, "-c", code],
             cwd=REPO_ROOT,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            check=False,
+            capture_output=True,
+            text=True,
         )
-        return True
-    except (subprocess.CalledProcessError, OSError):
-        return False
+        detail = (proc.stdout or proc.stderr or "").strip()
+        return proc.returncode == 0, detail or "unknown error"
+    except OSError as e:
+        return False, str(e)
 
 
-def print_tf_setup_hint():
+def print_tf_setup_hint(detail=""):
+    print("\nNeural-network step needs TensorFlow 2.x + tf-slim (not PyTorch).", file=sys.stderr)
+    if detail:
+        print("Check failed:", detail, file=sys.stderr)
     print(
-        "\nNeural-network step needs TensorFlow 2.x + tf-slim (not PyTorch).\n"
-        "  pip install -r requirements.txt\n"
-        "  Kaggle GPU: enable GPU, then pip install -r requirements.txt in the notebook.\n"
-        "  Convert only (no TF):  python infer.py -i <input> -o <output> --convert-only\n",
+        "\nKaggle (use pip on the notebook Python — not `tensorflow` shell command):\n"
+        "  !pip install -U pip\n"
+        "  !pip install tensorflow tf-slim opencv-python-headless scikit-image Pillow pulp numpy\n"
+        "  !python -c \"import tensorflow as tf; print(tf.__version__, tf.config.list_physical_devices('GPU'))\"\n"
+        "\nThen:\n"
+        "  !python infer.py -i <input> -o <out> --gpu 0\n"
+        "\nPLY/TFRecord only:\n"
+        "  !python infer.py -i <input> -o <out> --convert-only\n",
         file=sys.stderr,
     )
 
@@ -224,9 +239,13 @@ def main():
         view_indices = [int(x.strip()) for x in args.views.split(",") if x.strip()]
 
     python_exe = resolve_inference_python(args.python)
-    if not args.convert_only and not tensorflow_usable(python_exe):
-        print_tf_setup_hint()
-        return 1
+    if not args.convert_only:
+        tf_ok, tf_detail = tensorflow_usable(python_exe)
+        if tf_ok:
+            print("TensorFlow:", tf_detail)
+        else:
+            print_tf_setup_hint(tf_detail)
+            return 1
 
     scans = discover_npz_files(args.input, recursive=args.recursive)
     ok, failed = [], []

@@ -3,7 +3,10 @@ import sys
 import tensorflow as tf
 import numpy as np
 import cv2
-import tflearn
+try:
+    import tflearn
+except ImportError:
+    tflearn = None
 import random
 import math
 import os
@@ -29,12 +32,18 @@ from utils import *
 if 'xrange' not in globals():
     xrange = range
     pass
-import tensorflow.contrib.slim as slim
+try:
+    import tensorflow.contrib.slim as slim
+except (ImportError, ModuleNotFoundError, AttributeError):
+    import tf_slim as slim
 from tensorflow import nn
 from tensorflow.python.client import timeline
 #from evaluate import *
 
-bn_func = tflearn.layers.normalization.batch_normalization
+if tflearn is not None:
+    bn_func = tflearn.layers.normalization.batch_normalization
+else:
+    bn_func = slim.batch_norm
 
 DATASETS = ['syn', 'real', 'scannet', "matterport", "SUNCG"]
 

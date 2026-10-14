@@ -1,5 +1,5 @@
-# Kaggle / Python 3.10–3.13 + GPU (CUDA via TensorFlow, not PyTorch).
-# FloorNet CNN runs on TensorFlow; your torch+cuda stack is unrelated unless you port the model.
+# FloorNet — use:  python -m pip install -r requirements.txt
+# (tensorflow is a Python library; there is no `tensorflow` shell command.)
 
 numpy>=1.26
 opencv-python-headless>=4.8
@@ -9,7 +9,10 @@ pulp>=2.8
 tensorflow>=2.16
 tf-slim>=1.1.0
 
-# Kaggle notebook (GPU on): after cloning repo —
-#   !pip install -q -r FloorNet/requirements.txt
-#   %cd FloorNet
-#   !python infer.py -i /kaggle/input/your-npz-folder -o /kaggle/working/out --gpu 0
+# --- Kaggle notebook (GPU on) — run these cells, not `uv pip` into /usr unless you know why ---
+# !pip install -U pip
+# !pip install tensorflow tf-slim opencv-python-headless scikit-image Pillow pulp numpy
+# !python -c "import tensorflow as tf; print('TF', tf.__version__, 'GPU', tf.config.list_physical_devices('GPU'))"
+# %cd /kaggle/working/FloorNet
+# !python check_tf.py
+# !python infer.py -i /kaggle/input/... -o /kaggle/working/out --gpu 0
