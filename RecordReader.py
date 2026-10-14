@@ -28,7 +28,7 @@ def parse_fn(example, augmentation, readImageFeatures = False, convertCorners=Fa
                 'num_corners': tf.FixedLenFeature([], tf.int64),
                 'icon': tf.FixedLenFeature([], tf.string),
                 'room': tf.FixedLenFeature([], tf.string),
-                'image': tf.FixedLenFeature(sum([size * size * numChannels for size, numChannels in zip(SIZES, NUM_CHANNELS)[1:]]), tf.float32),
+                'image': tf.FixedLenFeature(sum([size * size * numChannels for size, numChannels in list(zip(SIZES, NUM_CHANNELS))[1:]]), tf.float32),
                 'flags': tf.FixedLenFeature([2], tf.int64),
             })
     else:
@@ -62,7 +62,7 @@ def parse_fn(example, augmentation, readImageFeatures = False, convertCorners=Fa
         imageFeature = features['image']
         imageFeatures = {}
         offset = 0
-        for index, (size, numChannels) in enumerate(zip(SIZES, NUM_CHANNELS)[1:]):
+        for index, (size, numChannels) in enumerate(list(zip(SIZES, NUM_CHANNELS))[1:]):
             imageFeatures[index] = tf.reshape(imageFeature[offset:offset + size * size * numChannels], (size, size, numChannels))
             offset += size * size * numChannels
             continue
@@ -139,7 +139,7 @@ def parse_fn(example, augmentation, readImageFeatures = False, convertCorners=Fa
 #                 'num_corners': tf.FixedLenFeature([], tf.int32),
 #                 'icon': tf.FixedLenFeature([], tf.string),
 #                 'room': tf.FixedLenFeature([], tf.string),
-#                 'image': tf.FixedLenFeature(sum([size * size * numChannels for size, numChannels in zip(SIZES, NUM_CHANNELS)[1:]]), tf.float32),
+#                 'image': tf.FixedLenFeature(sum([size * size * numChannels for size, numChannels in list(zip(SIZES, NUM_CHANNELS))[1:]]), tf.float32),
 #                 'flags': tf.FixedLenFeature([2], tf.int32),
 #             })
 
@@ -181,7 +181,7 @@ def parse_fn(example, augmentation, readImageFeatures = False, convertCorners=Fa
 #         imageFeatures = []
 #         imageFeature = tf.reduce_sum(tf.reshape(features['image'], [2, -1]), axis=0)
 #         offset = 0
-#         for size, numChannels in zip(SIZES, NUM_CHANNELS)[1:]:
+#         for size, numChannels in list(zip(SIZES, NUM_CHANNELS))[1:]:
 #             imageFeatures.append(tf.reshape(imageFeature[offset:offset + size * size * numChannels], (size[1], size, numChannels)))
 #             offset += size * size * numChannels
 #             continue

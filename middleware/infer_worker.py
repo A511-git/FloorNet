@@ -90,8 +90,11 @@ def run_inference(tfrecord_path, out_dir, scene_name, checkpoint_dir, gpu="0", s
     if REPO_ROOT not in sys.path:
         sys.path.insert(0, REPO_ROOT)
 
-    import tensorflow as tf
-    import tflearn
+    from middleware.tf_setup import configure
+
+    configure()
+    import tensorflow.compat.v1 as tf
+    import tflearn  # noqa: F401 — shim installed by configure()
 
     from RecordReader import getDatasetVal
     from train import build_graph, build_loss, parse_args
@@ -166,7 +169,10 @@ def main():
             solver=args.solver,
         )
     except ImportError as e:
-        print("Inference requires TensorFlow 1.x, tflearn, opencv, and project deps.", file=sys.stderr)
+        print(
+            "Inference requires tensorflow>=2.15, tf-slim, opencv, pulp (see requirements.txt).",
+            file=sys.stderr,
+        )
         print(e, file=sys.stderr)
         return 1
     return 0

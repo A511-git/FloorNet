@@ -9,7 +9,10 @@ This paper proposes FloorNet, a novel neural network, to turn RGBD videos of ind
 [12/22/2018] We now provide a free IP solver (not relying on Gurobi) at IP.py. The functionality of IP.py should be similar to QP.py which uses Gurobi to solve the IP problem. You might want to consider the free solver if you don't have a Gurobi license.
 
 ## Dependencies
-Python 2.7, TensorFlow (>= 1.3), numpy, opencv 3, CUDA (>= 8.0), Gurobi (free only for academic usages).
+
+Original paper stack: Python 2.7, TensorFlow (>= 1.3), numpy, opencv 3, CUDA (>= 8.0), Gurobi (optional, for `QP.py`).
+
+**Install:** `pip install -r requirements.txt`. Inference uses **TensorFlow 2.x + GPU** (e.g. Kaggle notebook GPU). **PyTorch is not used** by this repo.
 
 ## Data
 

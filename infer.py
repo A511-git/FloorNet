@@ -68,6 +68,55 @@ def output_scan_dir(output_root, rel_subdir, stem):
     return os.path.join(output_root, stem)
 
 
+def resolve_inference_python(explicit=None):
+    """TF 1.15 needs Python 3.7; on 3.13 use --python or repo .venv-tf1."""
+    if explicit:
+        return explicit
+    env_py = os.environ.get("FLOORNET_TF_PYTHON")
+    if env_py and os.path.isfile(env_py):
+        return env_py
+    if sys.platform == "win32":
+        candidates = [
+            os.path.join(REPO_ROOT, ".venv-tf1", "Scripts", "python.exe"),
+            os.path.join(REPO_ROOT, ".venv-tf1", "bin", "python"),
+        ]
+    else:
+        candidates = [os.path.join(REPO_ROOT, ".venv-tf1", "bin", "python")]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    return sys.executable
+
+
+def tensorflow_usable(python_exe):
+    code = (
+        "import sys; sys.path.insert(0, r'%s'); "
+        "from middleware.tf_setup import configure; configure(); "
+        "import tensorflow.compat.v1 as tf; import tf_slim"
+    ) % REPO_ROOT.replace("\\", "\\\\")
+    try:
+        subprocess.run(
+            [python_exe, "-c", code],
+            cwd=REPO_ROOT,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except (subprocess.CalledProcessError, OSError):
+        return False
+
+
+def print_tf_setup_hint():
+    print(
+        "\nNeural-network step needs TensorFlow 2.x + tf-slim (not PyTorch).\n"
+        "  pip install -r requirements.txt\n"
+        "  Kaggle GPU: enable GPU, then pip install -r requirements.txt in the notebook.\n"
+        "  Convert only (no TF):  python infer.py -i <input> -o <output> --convert-only\n",
+        file=sys.stderr,
+    )
+
+
 def run_infer_worker(tfrecord, out_dir, scene_name, checkpoint_dir, gpu, solver, python_exe):
     worker = os.path.join(REPO_ROOT, "middleware", "infer_worker.py")
     cmd = [
@@ -174,7 +223,11 @@ def main():
     if args.views:
         view_indices = [int(x.strip()) for x in args.views.split(",") if x.strip()]
 
-    python_exe = args.python or sys.executable
+    python_exe = resolve_inference_python(args.python)
+    if not args.convert_only and not tensorflow_usable(python_exe):
+        print_tf_setup_hint()
+        return 1
+
     scans = discover_npz_files(args.input, recursive=args.recursive)
     ok, failed = [], []
 
