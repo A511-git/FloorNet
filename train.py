@@ -272,7 +272,7 @@ def build_graph(options, input_dict):
             pointcloud_indices_inp = getCoarseIndicesMapsBatch(pointcloud_indices_inp, WIDTH, HEIGHT)
             batchIndexOffsets = []
             for c in xrange(6):
-                batchIndexOffsets.append((np.arange(options.batchSize/len(options.gpu_id), dtype=np.int32)) * SIZES[c] * SIZES[c])
+                batchIndexOffsets.append((np.arange((options.batchSize // len(options.gpu_id)), dtype=np.int32)) * SIZES[c] * SIZES[c])
                 continue
             batchIndexOffsets = tf.expand_dims(tf.stack(batchIndexOffsets, axis=0), -1)
 
@@ -284,8 +284,8 @@ def build_graph(options, input_dict):
 
             x0 = tf.expand_dims(pointcloud_inp, -1)
 
-            x0_topdown = tf.unsorted_segment_sum(tf.reshape(x0, (-1, NUM_CHANNELS[0])), tf.reshape(indices_maps[0], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[0] * SIZES[0]) / options.sumScale
-            x0_topdown = tf.reshape(x0_topdown, (options.batchSize/len(options.gpu_id), SIZES[0], SIZES[0], -1))
+            x0_topdown = tf.unsorted_segment_sum(tf.reshape(x0, (-1, NUM_CHANNELS[0])), tf.reshape(indices_maps[0], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[0] * SIZES[0]) / options.sumScale
+            x0_topdown = tf.reshape(x0_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[0], SIZES[0], -1))
             x0_down = x0_topdown
 
             if options.branches == '1':
@@ -298,15 +298,15 @@ def build_graph(options, input_dict):
             else:
                 x1 = slim.conv2d(x0, NUM_CHANNELS[1], (1, NUM_CHANNELS[0]), stride=1, activation_fn=nn.relu, padding='valid', normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if options.poolingTypes[0] == 's':
-                    x1_topdown = tf.unsorted_segment_sum(tf.reshape(x1, (-1, NUM_CHANNELS[1])), tf.reshape(indices_maps[1], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[1] * SIZES[1]) / min(options.sumScale * 4, (options.sumScale - 1) * 10000 + 1)
+                    x1_topdown = tf.unsorted_segment_sum(tf.reshape(x1, (-1, NUM_CHANNELS[1])), tf.reshape(indices_maps[1], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[1] * SIZES[1]) / min(options.sumScale * 4, (options.sumScale - 1) * 10000 + 1)
                 else:
-                    x1_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x1, (-1, NUM_CHANNELS[1])), tf.reshape(indices_maps[1], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[1] * SIZES[1]), 0)
+                    x1_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x1, (-1, NUM_CHANNELS[1])), tf.reshape(indices_maps[1], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[1] * SIZES[1]), 0)
                     pass
 
-                x1_topdown = tf.reshape(x1_topdown, (options.batchSize/len(options.gpu_id), SIZES[1], SIZES[1], -1))
+                x1_topdown = tf.reshape(x1_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[1], SIZES[1], -1))
                 x1_down = slim.conv2d(x0_down, NUM_CHANNELS[1], (3, 3), stride=2, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if '2' in options.branches:
-                    x1_unproject = tf.reshape(tf.gather(tf.reshape(x1_down, (-1, NUM_CHANNELS[1])), indices_maps[1], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x1_unproject = tf.reshape(tf.gather(tf.reshape(x1_down, (-1, NUM_CHANNELS[1])), indices_maps[1], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     x1 = mergeFeatures([x1, tf.expand_dims(x1_unproject, 2)])
                     pass
 
@@ -317,15 +317,15 @@ def build_graph(options, input_dict):
 
                 x2 = slim.conv2d(x1, NUM_CHANNELS[2], (1, 1), stride=1, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if options.poolingTypes[1] == 's':
-                    x2_topdown = tf.unsorted_segment_sum(tf.reshape(x2, (-1, NUM_CHANNELS[2])), tf.reshape(indices_maps[2], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[2] * SIZES[2]) / min(options.sumScale * 16, (options.sumScale - 1) * 10000 + 1)
+                    x2_topdown = tf.unsorted_segment_sum(tf.reshape(x2, (-1, NUM_CHANNELS[2])), tf.reshape(indices_maps[2], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[2] * SIZES[2]) / min(options.sumScale * 16, (options.sumScale - 1) * 10000 + 1)
                 else:
-                    x2_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x2, (-1, NUM_CHANNELS[2])), tf.reshape(indices_maps[2], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[2] * SIZES[2]), 0)
+                    x2_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x2, (-1, NUM_CHANNELS[2])), tf.reshape(indices_maps[2], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[2] * SIZES[2]), 0)
                     pass
 
-                x2_topdown = tf.reshape(x2_topdown, (options.batchSize/len(options.gpu_id), SIZES[2], SIZES[2], -1))
+                x2_topdown = tf.reshape(x2_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[2], SIZES[2], -1))
                 x2_down = slim.conv2d(x1_down, NUM_CHANNELS[2], (3, 3), stride=2, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if '2' in options.branches:
-                    x2_unproject = tf.reshape(tf.gather(tf.reshape(x2_down, (-1, NUM_CHANNELS[2])), indices_maps[2], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x2_unproject = tf.reshape(tf.gather(tf.reshape(x2_down, (-1, NUM_CHANNELS[2])), indices_maps[2], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     x2 = mergeFeatures([x2, tf.expand_dims(x2_unproject, 2)])
                     pass
                 if '0' in options.branches:
@@ -335,15 +335,15 @@ def build_graph(options, input_dict):
 
                 x3 = slim.conv2d(x2, NUM_CHANNELS[3], (1, 1), stride=1, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if options.poolingTypes[2] == 's':
-                    x3_topdown = tf.unsorted_segment_sum(tf.reshape(x3, (-1, NUM_CHANNELS[3])), tf.reshape(indices_maps[3], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[3] * SIZES[3]) / min(options.sumScale * 64, (options.sumScale - 1) * 10000 + 1)
+                    x3_topdown = tf.unsorted_segment_sum(tf.reshape(x3, (-1, NUM_CHANNELS[3])), tf.reshape(indices_maps[3], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[3] * SIZES[3]) / min(options.sumScale * 64, (options.sumScale - 1) * 10000 + 1)
                 else:
-                    x3_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x3, (-1, NUM_CHANNELS[3])), tf.reshape(indices_maps[3], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[3] * SIZES[3]), 0)
+                    x3_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x3, (-1, NUM_CHANNELS[3])), tf.reshape(indices_maps[3], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[3] * SIZES[3]), 0)
                     pass
 
-                x3_topdown = tf.reshape(x3_topdown, (options.batchSize/len(options.gpu_id), SIZES[3], SIZES[3], -1))
+                x3_topdown = tf.reshape(x3_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[3], SIZES[3], -1))
                 x3_down = slim.conv2d(x2_down, NUM_CHANNELS[3], (3, 3), stride=2, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if '2' in options.branches:
-                    x3_unproject = tf.reshape(tf.gather(tf.reshape(x3_down, (-1, NUM_CHANNELS[3])), indices_maps[3], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x3_unproject = tf.reshape(tf.gather(tf.reshape(x3_down, (-1, NUM_CHANNELS[3])), indices_maps[3], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     x3 = mergeFeatures([x3, tf.expand_dims(x3_unproject, 2)])
                     pass
 
@@ -354,14 +354,14 @@ def build_graph(options, input_dict):
 
                 x4 = slim.conv2d(x3, NUM_CHANNELS[4], (1, 1), stride=1, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if options.poolingTypes[3] == 's':
-                     x4_topdown = tf.unsorted_segment_sum(tf.reshape(x4, (-1, NUM_CHANNELS[4])), tf.reshape(indices_maps[4], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[4] * SIZES[4]) / min(options.sumScale * 256, (options.sumScale - 1) * 10000 + 1)
+                     x4_topdown = tf.unsorted_segment_sum(tf.reshape(x4, (-1, NUM_CHANNELS[4])), tf.reshape(indices_maps[4], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[4] * SIZES[4]) / min(options.sumScale * 256, (options.sumScale - 1) * 10000 + 1)
                 else:
-                    x4_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x4, (-1, NUM_CHANNELS[4])), tf.reshape(indices_maps[4], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[4] * SIZES[4]), 0)
+                    x4_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x4, (-1, NUM_CHANNELS[4])), tf.reshape(indices_maps[4], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[4] * SIZES[4]), 0)
                     pass
-                x4_topdown = tf.reshape(x4_topdown, (options.batchSize/len(options.gpu_id), SIZES[4], SIZES[4], -1))
+                x4_topdown = tf.reshape(x4_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[4], SIZES[4], -1))
                 x4_down = slim.conv2d(x3_down, NUM_CHANNELS[4], (3, 3), stride=2, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if '2' in options.branches:
-                    x4_unproject = tf.reshape(tf.gather(tf.reshape(x4_down, (-1, NUM_CHANNELS[4])), indices_maps[4], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x4_unproject = tf.reshape(tf.gather(tf.reshape(x4_down, (-1, NUM_CHANNELS[4])), indices_maps[4], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     x4 = mergeFeatures([x4, tf.expand_dims(x4_unproject, 2)])
                     pass
                 if '0' in options.branches:
@@ -371,14 +371,14 @@ def build_graph(options, input_dict):
 
                 x5 = slim.conv2d(x4, NUM_CHANNELS[5], (1, 1), stride=1, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if options.poolingTypes[4] == 's':
-                    x5_topdown = tf.unsorted_segment_sum(tf.reshape(x5, (-1, NUM_CHANNELS[5])), tf.reshape(indices_maps[5], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[5] * SIZES[5]) / min(options.sumScale * 1024, (options.sumScale - 1) * 10000 + 1)
+                    x5_topdown = tf.unsorted_segment_sum(tf.reshape(x5, (-1, NUM_CHANNELS[5])), tf.reshape(indices_maps[5], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[5] * SIZES[5]) / min(options.sumScale * 1024, (options.sumScale - 1) * 10000 + 1)
                 else:
-                    x5_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x5, (-1, NUM_CHANNELS[5])), tf.reshape(indices_maps[5], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[5] * SIZES[5]), 0)
+                    x5_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x5, (-1, NUM_CHANNELS[5])), tf.reshape(indices_maps[5], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[5] * SIZES[5]), 0)
                     pass
-                x5_topdown = tf.reshape(x5_topdown, (options.batchSize/len(options.gpu_id), SIZES[5], SIZES[5], -1))
+                x5_topdown = tf.reshape(x5_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[5], SIZES[5], -1))
                 x5_down = slim.conv2d(x4_down, NUM_CHANNELS[5], (3, 3), stride=2, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if '2' in options.branches:
-                    x5_unproject = tf.reshape(tf.gather(tf.reshape(x5_down, (-1, NUM_CHANNELS[5])), indices_maps[5], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x5_unproject = tf.reshape(tf.gather(tf.reshape(x5_down, (-1, NUM_CHANNELS[5])), indices_maps[5], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     x5 = mergeFeatures([x5, tf.expand_dims(x5_unproject, 2)])
                     pass
                 if '0' in options.branches:
@@ -394,10 +394,10 @@ def build_graph(options, input_dict):
                     pass
 
                 # no fully connected layer in the middle
-                #x_fc = tf.reshape(x_fc, (options.batchSize/len(options.gpu_id), -1))
+                #x_fc = tf.reshape(x_fc, ((options.batchSize // len(options.gpu_id)), -1))
                 #x_fc = slim.fully_connected(x_fc, 256, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 #x_fc = slim.fully_connected(x_fc, NUM_CHANNELS[5], activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
-                #x_fc = tf.reshape(x_fc, (options.batchSize/len(options.gpu_id), 1, 1, -1))
+                #x_fc = tf.reshape(x_fc, ((options.batchSize // len(options.gpu_id)), 1, 1, -1))
 
                 x_fc_up = tf.tile(x_fc_down, (1, SIZES[5], SIZES[5], 1))
                 x5_up = mergeFeatures([x_fc_up, x5_down])
@@ -426,13 +426,13 @@ def build_graph(options, input_dict):
             if '3' in options.branches:
                 x4 = slim.conv2d(x5, NUM_CHANNELS[4], (1, 1), stride=1, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
                 if '2' in options.branches:
-                    x4_up_unproject = tf.reshape(tf.gather(tf.reshape(x4_up, (-1, NUM_CHANNELS[4])), indices_maps[4], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x4_up_unproject = tf.reshape(tf.gather(tf.reshape(x4_up, (-1, NUM_CHANNELS[4])), indices_maps[4], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     #x4 = tf.add(x4, tf.expand_dims(x4_up_unproject, 2))
                     x4 = mergeFeatures([x4, tf.expand_dims(x4_up_unproject, 2)])
                     pass
 
-                x4_up_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x4, (-1, NUM_CHANNELS[4])), tf.reshape(indices_maps[4], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[4] * SIZES[4]), 0)
-                x4_up_topdown = tf.reshape(x4_up_topdown, (options.batchSize/len(options.gpu_id), SIZES[4], SIZES[4], -1))
+                x4_up_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x4, (-1, NUM_CHANNELS[4])), tf.reshape(indices_maps[4], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[4] * SIZES[4]), 0)
+                x4_up_topdown = tf.reshape(x4_up_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[4], SIZES[4], -1))
                 if '0' in options.branches:
                     x4_up = mergeFeatures([x4_up, x4_up_topdown])
                     pass
@@ -456,13 +456,13 @@ def build_graph(options, input_dict):
                 x3 = slim.conv2d(x4, NUM_CHANNELS[3], (1, 1), stride=1, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
 
                 if '2' in options.branches:
-                    x3_up_unproject = tf.reshape(tf.gather(tf.reshape(x3_up, (-1, NUM_CHANNELS[3])), indices_maps[3], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x3_up_unproject = tf.reshape(tf.gather(tf.reshape(x3_up, (-1, NUM_CHANNELS[3])), indices_maps[3], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     #x3 = tf.add(x3, tf.expand_dims(x3_up_unproject, 2))
                     x3 = mergeFeatures([x3, tf.expand_dims(x3_up_unproject, 2)])
                     pass
 
-                x3_up_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x3, (-1, NUM_CHANNELS[3])), tf.reshape(indices_maps[3], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[3] * SIZES[3]), 0)
-                x3_up_topdown = tf.reshape(x3_up_topdown, (options.batchSize/len(options.gpu_id), SIZES[3], SIZES[3], -1))
+                x3_up_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x3, (-1, NUM_CHANNELS[3])), tf.reshape(indices_maps[3], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[3] * SIZES[3]), 0)
+                x3_up_topdown = tf.reshape(x3_up_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[3], SIZES[3], -1))
                 if '0' in options.branches:
                     x3_up = mergeFeatures([x3_up, x3_up_topdown])
                     pass
@@ -479,13 +479,13 @@ def build_graph(options, input_dict):
                 x2 = slim.conv2d(x3, NUM_CHANNELS[2], (1, 1), stride=1, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
 
                 if '2' in options.branches:
-                    x2_up_unproject = tf.reshape(tf.gather(tf.reshape(x2_up, (-1, NUM_CHANNELS[2])), indices_maps[2], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x2_up_unproject = tf.reshape(tf.gather(tf.reshape(x2_up, (-1, NUM_CHANNELS[2])), indices_maps[2], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     #x2 = tf.add(x2, tf.expand_dims(x2_up_unproject, 2))
                     x2 = mergeFeatures([x2, tf.expand_dims(x2_up_unproject, 2)])
                     pass
 
-                x2_up_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x2, (-1, NUM_CHANNELS[2])), tf.reshape(indices_maps[2], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[2] * SIZES[2]), 0)
-                x2_up_topdown = tf.reshape(x2_up_topdown, (options.batchSize/len(options.gpu_id), SIZES[2], SIZES[2], -1))
+                x2_up_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x2, (-1, NUM_CHANNELS[2])), tf.reshape(indices_maps[2], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[2] * SIZES[2]), 0)
+                x2_up_topdown = tf.reshape(x2_up_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[2], SIZES[2], -1))
                 if '0' in options.branches:
                     x2_up = mergeFeatures([x2_up, x2_up_topdown])
                     pass
@@ -504,14 +504,14 @@ def build_graph(options, input_dict):
                 x1 = slim.conv2d(x2, NUM_CHANNELS[1], (1, 1), stride=1, activation_fn=nn.relu, normalizer_fn=bn_func, weights_regularizer=slim.l2_regularizer(1e-5))
 
                 if '2' in options.branches:
-                    x1_up_unproject = tf.reshape(tf.gather(tf.reshape(x1_up, (-1, NUM_CHANNELS[1])), indices_maps[1], validate_indices=False), (options.batchSize/len(options.gpu_id), options.numPoints, -1))
+                    x1_up_unproject = tf.reshape(tf.gather(tf.reshape(x1_up, (-1, NUM_CHANNELS[1])), indices_maps[1], validate_indices=False), ((options.batchSize // len(options.gpu_id)), options.numPoints, -1))
                     #print(x1_up_unproject.shape)
                     #x1 = tf.add(x1, tf.expand_dims(x1_up_unproject, 2))
                     x1 = mergeFeatures([x1, tf.expand_dims(x1_up_unproject, 2)])
                     pass
 
-                x1_up_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x1, (-1, NUM_CHANNELS[1])), tf.reshape(indices_maps[1], (-1, )), num_segments=options.batchSize/len(options.gpu_id) * SIZES[1] * SIZES[1]), 0)
-                x1_up_topdown = tf.reshape(x1_up_topdown, (options.batchSize/len(options.gpu_id), SIZES[1], SIZES[1], -1))
+                x1_up_topdown = tf.maximum(tf.unsorted_segment_max(tf.reshape(x1, (-1, NUM_CHANNELS[1])), tf.reshape(indices_maps[1], (-1, )), num_segments=(options.batchSize // len(options.gpu_id)) * SIZES[1] * SIZES[1]), 0)
+                x1_up_topdown = tf.reshape(x1_up_topdown, ((options.batchSize // len(options.gpu_id)), SIZES[1], SIZES[1], -1))
                 if '1' not in options.branches:
                     x1_up = x1_up_topdown
                 else:

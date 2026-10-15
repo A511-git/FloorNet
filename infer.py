@@ -149,6 +149,12 @@ class FloorNetModel(object):
         self.options.cornerLossType = 'sigmoid'
         self.options.slice = False
         self.options.checkpoint_dir = self.checkpoint_dir
+        self.options.augmentation = 'wsf'
+        self.options.sumScale = 10
+        self.options.poolingTypes = 'sssmm'
+        self.options.debug = -1
+        self.options.prefix = 'floornet'
+        self.options.loss = '01234'
 
         print("Building TensorFlow graph for FloorNet (branches=%s)..." % self.branches)
         self.tf.reset_default_graph()
