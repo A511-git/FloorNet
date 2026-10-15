@@ -2,7 +2,10 @@ import sys
 import numpy as np
 import cv2
 import os
-import tensorflow as tf
+try:
+    import tensorflow.compat.v1 as tf
+except (ImportError, AttributeError):
+    import tensorflow as tf
 
 HEIGHT = 256
 WIDTH = 256
@@ -35,7 +38,8 @@ class RecordWriterCustom():
         self.numPoints = numPoints
         self.numInputChannels = numInputChannels
         #super(RecordWriterTango, self).__init__()
-        self.writer = tf.python_io.TFRecordWriter('data/' + filename + '_' + options.task + '.tfrecords')
+        tf_writer = getattr(getattr(tf, "python_io", None), "TFRecordWriter", getattr(getattr(tf, "io", None), "TFRecordWriter", None))
+        self.writer = tf_writer('data/' + filename + '_' + options.task + '.tfrecords')
         for filename_dict in filename_list:
             self.writeExample(filename_dict)
             continue
@@ -180,9 +184,9 @@ class RecordWriterCustom():
                 if info_name == 'corner_gt':
                     info = np.zeros((1, 3))
                 elif info_name in ['icon_gt', 'room_gt']:
-                    info = np.zeros((HEIGHT, WIDTH), dtype=uint8)
+                    info = np.zeros((HEIGHT, WIDTH), dtype=np.uint8)
                 else:
-                    info = np.zeros(sum([size * size * numChannels for size, numChannels in zip(SIZES, NUM_CHANNELS)[1:]]))                    
+                    info = np.zeros(sum([size * size * numChannels for size, numChannels in list(zip(SIZES, NUM_CHANNELS))[1:]]))                    
                     pass
                 pass
             info_dict[info_name] = info

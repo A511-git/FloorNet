@@ -5,7 +5,10 @@ try:
     configure()
 except Exception:
     pass
-import tensorflow as tf
+try:
+    import tensorflow.compat.v1 as tf
+except (ImportError, AttributeError):
+    import tensorflow as tf
 import numpy as np
 import cv2
 try:

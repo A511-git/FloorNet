@@ -8,24 +8,36 @@ import time
 import zlib
 import socket
 import threading
-import Queue
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
 import sys
-import cPickle as pickle
+import pickle
 import PIL
 import json
 import glob
-import torchfile
+try:
+    import torchfile
+except ImportError:
+    torchfile = None
 import math
 import os.path
 import zipfile
-import lupa
+try:
+    import lupa
+except ImportError:
+    lupa = None
 #from drnseg import DRNSeg
 from utils import *
 from floorplan_utils import *
 import argparse
 from skimage import measure
 from augmentation import augment
-import tensorflow as tf
+try:
+    import tensorflow.compat.v1 as tf
+except (ImportError, AttributeError):
+    import tensorflow as tf
 
 #import show3d
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -203,7 +215,8 @@ class RecordWriterTango():
             pass
 
         filename = os.path.basename(__file__).rstrip('.py')[12:]
-        self.writer = tf.python_io.TFRecordWriter('data/' + filename + '_' + options.task + '.tfrecords')
+        tf_writer = getattr(getattr(tf, "python_io", None), "TFRecordWriter", getattr(getattr(tf, "io", None), "TFRecordWriter", None))
+        self.writer = tf_writer('data/' + filename + '_' + options.task + '.tfrecords')
         for imagePath in self.imagePaths:
             self.writeExample(imagePath)
             continue
@@ -412,7 +425,7 @@ class RecordWriterTango():
             continue
 
         roomLabelMap = {}
-        for semantic, items in semantics.iteritems():
+        for semantic, items in semantics.items():
             group, label = self.labelMap[semantic]
             for corners in items:
                 if group == 'icons':
@@ -442,7 +455,7 @@ class RecordWriterTango():
                     pass
                 continue
             continue
-        for roomIndex in xrange(rooms.min(), rooms.max() + 1):
+        for roomIndex in range(rooms.min(), rooms.max() + 1):
             if roomIndex == wallIndex or roomIndex == backgroundIndex:
                 continue
             if roomIndex not in roomLabelMap:
@@ -461,7 +474,7 @@ class RecordWriterTango():
             corner_feature = np.load(corner_feature_file).reshape((HEIGHT, WIDTH, -1))
             icon_feature = np.load(icon_feature_file).reshape((HEIGHT, WIDTH, -1))
             for featureIndex, feature in enumerate([corner_feature, icon_feature]):
-                for size, numChannels in zip(SIZES, NUM_CHANNELS)[1:]:
+                for size, numChannels in list(zip(SIZES, NUM_CHANNELS))[1:]:
                     feature = cv2.resize(feature, (size, size))
                     image_features[featureIndex].append(feature.reshape((size, size, numChannels, -1)).mean(-1).reshape(-1))
                     continue
@@ -469,7 +482,7 @@ class RecordWriterTango():
                 continue
             image_features = image_features[0] + image_features[1]
         else:
-            image_features = np.zeros(sum([size * size * numChannels for size, numChannels in zip(SIZES, NUM_CHANNELS)[1:]]))
+            image_features = np.zeros(sum([size * size * numChannels for size, numChannels in list(zip(SIZES, NUM_CHANNELS))[1:]]))
             pass
 
         if False:

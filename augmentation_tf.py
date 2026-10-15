@@ -1,6 +1,9 @@
 import numpy as np
 from utils import *
-import tensorflow as tf
+try:
+    import tensorflow.compat.v1 as tf
+except (ImportError, AttributeError):
+    import tensorflow as tf
 from floorplan_utils import *
 
 
@@ -125,7 +128,7 @@ def augmentScaling(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatur
     validMask = tf.logical_and(tf.logical_and(tf.greater_equal(newCorners[:, 0], 0), tf.greater_equal(newCorners[:, 1], 0)), tf.logical_and(tf.less(newCorners[:, 0], WIDTH), tf.less(newCorners[:, 1], HEIGHT)))
     newCorners = tf.boolean_mask(newCorners, validMask)
 
-    for index, (featureSize, numChannels) in enumerate(zip(SIZES, NUM_CHANNELS)[1:]):
+    for index, (featureSize, numChannels) in enumerate(list(zip(SIZES, NUM_CHANNELS))[1:]):
         if index in imageFeatures:
             imageFeatures[index] = tf.image.resize_image_with_crop_or_pad(tf.image.resize_nearest_neighbor(tf.expand_dims(imageFeatures[index], 0), size = tf.cast(tf.round(tf.constant((featureSize, featureSize), dtype=tf.float32) * randomScale), tf.int32)), featureSize, featureSize)[0]
             pass
@@ -160,7 +163,7 @@ def augmentFlipping(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatu
     corners = tf.cond(tf.equal(orientation % 2, 1), lambda: tf.stack([corners[:, 0], height - 1 - corners[:, 1], tf.gather_nd(reverseChannelsY, corners[:, 2:3])], axis=1), lambda: corners)
 
 
-    for index, (size, numChannels) in enumerate(zip(SIZES, NUM_CHANNELS)[1:]):
+    for index, (size, numChannels) in enumerate(list(zip(SIZES, NUM_CHANNELS))[1:]):
         if index in imageFeatures:
             imageFeatures[index] = tf.cond(orientation >= 2, lambda: imageFeatures[index][:, ::-1], lambda: imageFeatures[index])
             imageFeatures[index] = tf.cond(tf.equal(orientation % 2, 1), lambda: imageFeatures[index][::-1], lambda: imageFeatures[index])
@@ -173,21 +176,17 @@ def augmentFlipping(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatu
 
 
 def augmentDropping(pointcloud, pointcloud_indices, changeIndices):
-    p = tf.random.random() * 0.5 + 0.5
-    indices = tf.range(pointcloud.shape[0], dtype='int32')
+    p = np.random.random() * 0.5 + 0.5
+    indices = np.arange(pointcloud.shape[0], dtype='int32')
     out_shape = int(pointcloud.shape[0] * p)
-    chosen_indices = tf.random.choice(indices, (out_shape, ), replace=True)
-    rest_mask = tf.ones(indices.shape, dtype=tf.bool)
-    rest_mask[chosen_indices] = 0
+    chosen_indices = np.random.choice(indices, (out_shape, ), replace=True)
+    rest_mask = np.ones(indices.shape, dtype=bool)
+    rest_mask[chosen_indices] = False
     rest_indices = indices[rest_mask]
-    #rest_indices = tf.array(list(set(indices) - set(chosen_indices)))
-    #rest = pointcloud[rest_indices]
+    if len(rest_indices) == 0:
+        rest_indices = indices
 
-    #rest_chosen_indices = tf.random.choice(rest_indices, (pointcloud.shape[0] - out_shape, ), replace=True)
-    #rest_chosen = rest[rest_chosen_indices]
-    #aug_pointcloud = pointcloud[chosen_indices] = rest_chosen
-
-    rest_indices = tf.random.choice(rest_indices, chosen_indices.shape[0], replace=True)
+    rest_indices = np.random.choice(rest_indices, chosen_indices.shape[0], replace=True)
     pointcloud[chosen_indices] = pointcloud[rest_indices]
     if changeIndices:
         pointcloud_indices[chosen_indices] = pointcloud_indices[rest_indices]
@@ -197,40 +196,10 @@ def augmentDropping(pointcloud, pointcloud_indices, changeIndices):
 
 
 def augment(pointcloud_inp, pointcloud_indices_0_inp, heatmapBatches, augmentation, numPoints=50000, numInputChannels=7):
-    pointcloud_indices_inp = tf.zeros((FETCH_BATCH_SIZE, 6, NUM_POINTS),dtype='int32')
-    newHeatmapBatches = [[] for heatmapIndex in xrange(len(heatmapBatches))]
+    pointcloud_indices_inp = np.zeros((FETCH_BATCH_SIZE, 6, NUM_POINTS), dtype='int32')
+    newHeatmapBatches = [[] for heatmapIndex in range(len(heatmapBatches))]
 
-    for imageIndex in xrange(pointcloud_inp.shape[0]):
-        # pointcloud = pointcloud_inp[imageIndex]
-        # pointcloud_indices_0 = pointcloud_indices_0_inp[imageIndex]
-        # corner = corner_gt[imageIndex]
-        # icon = icon_gt[imageIndex]
-        # room = room_gt[imageIndex]
-        # feature = feature_inp[imageIndex]
-        # if 'w' in augmentation:
-        #     pointcloud_indices_0, [corner, icon, room, feature] = augmentWarping(pointcloud_indices_0, [corner, icon, room, feature], gridStride=32., randomScale=4)
-        #     pass
-        # if 's' in augmentation:
-        #     pointcloud_indices_0, [corner, icon, room, feature] = augmentScaling(pointcloud_indices_0, [corner, icon, room, feature], randomScale=0)
-        #     pass
-        # if 'f' in augmentation:
-        #     pointcloud_indices_0, [corner, icon, room, feature] = augmentFlipping(pointcloud_indices_0, [corner, icon, room, feature])
-        #     pass
-        # if 'd' in augmentation:
-        #     pointcloud, pointcloud_indices_0 = augmentDropping(pointcloud, pointcloud_indices_0, changeIndices=True)
-        #     pass
-        # if 'p' in augmentation:
-        #     pointcloud, pointcloud_indices_0 = augmentDropping(pointcloud, pointcloud_indices_0, changeIndices=False)
-        #     pass
-
-        # pointcloud_inp[imageIndex] = pointcloud
-        # pointcloud_indices_inp[imageIndex] = getCoarseIndicesMaps(pointcloud_indices_0, WIDTH, HEIGHT, 0)
-        # corner_gt[imageIndex] = corner
-        # icon_gt[imageIndex] = icon
-        # room_gt[imageIndex] = room
-        # feature_inp[imageIndex] = feature
-
-
+    for imageIndex in range(pointcloud_inp.shape[0]):
         newHeatmaps = [heatmapBatch[imageIndex] for heatmapBatch in heatmapBatches]
         if 'w' in augmentation:
             pointcloud_indices_0_inp[imageIndex], newHeatmaps = augmentWarping(pointcloud_indices_0_inp[imageIndex], newHeatmaps, gridStride=32, randomScale=4)
@@ -248,29 +217,24 @@ def augment(pointcloud_inp, pointcloud_indices_0_inp, heatmapBatches, augmentati
             pointcloud_inp[imageIndex], pointcloud_indices_0_inp[imageIndex] = augmentDropping(pointcloud_inp[imageIndex], pointcloud_indices_0_inp[imageIndex], changeIndices=False)
             pass
 
-        #print(pointcloud_indices_0_inp[imageIndex].shape, pointcloud_indices_inp[imageIndex].shape)
         pointcloud_indices_inp[imageIndex] = getCoarseIndicesMaps(pointcloud_indices_0_inp[imageIndex], WIDTH, HEIGHT, 0)
         for heatmapIndex, newHeatmap in enumerate(newHeatmaps):
             newHeatmapBatches[heatmapIndex].append(newHeatmap)
             continue
         continue
-    newHeatmapBatches = [tf.array(newHeatmapBatch) for newHeatmapBatch in newHeatmapBatches]
-    pointcloud_inp = tf.concatenate([pointcloud_inp, tf.ones((FETCH_BATCH_SIZE, NUM_POINTS, 1))], axis=2)
-    #print(pointcloud_itf.shape)
-    #writePointCloud('test/pointcloud.ply', pointcloud_inp[0, :, :6])
-    #exit(1)
+    newHeatmapBatches = [np.array(newHeatmapBatch) for newHeatmapBatch in newHeatmapBatches]
+    pointcloud_inp = np.concatenate([pointcloud_inp, np.ones((FETCH_BATCH_SIZE, NUM_POINTS, 1))], axis=2)
 
-    if numPoints < pointcloud_itf.shape[1]:
-        sampledInds = tf.range(pointcloud_itf.shape[1])
-        tf.random.shuffle(sampledInds)
+    if numPoints < pointcloud_inp.shape[1]:
+        sampledInds = np.arange(pointcloud_inp.shape[1])
+        np.random.shuffle(sampledInds)
         sampledInds = sampledInds[:numPoints]
         pointcloud_inp = pointcloud_inp[:, sampledInds]
         pointcloud_indices_inp = pointcloud_indices_inp[:, :, sampledInds]
         pass
 
     if numInputChannels == 4:
-        pointcloud_inp = tf.concatenate([pointcloud_inp[:, :, :3], pointcloud_inp[:, :, 6:]], axis=2)
+        pointcloud_inp = np.concatenate([pointcloud_inp[:, :, :3], pointcloud_inp[:, :, 6:]], axis=2)
         pass
-
 
     return pointcloud_inp, pointcloud_indices_inp, newHeatmapBatches

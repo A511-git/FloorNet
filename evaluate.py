@@ -1,5 +1,9 @@
 import numpy as np
 import cv2
+try:
+    import tensorflow.compat.v1 as tf
+except (ImportError, AttributeError):
+    import tensorflow as tf
 from QP import reconstructFloorplan, findMatches
 from RecordReader import *
 from train import *
@@ -126,10 +130,10 @@ def evaluate(options):
                     gtAll = gt
                     predAll = pred
                 else:
-                    for k, v in gt.iteritems():
+                    for k, v in gt.items():
                         gtAll[k] = np.concatenate([gtAll[k], v], axis=0)
                         continue
-                    for k, v in pred.iteritems():
+                    for k, v in pred.items():
                         predAll[k] = np.concatenate([predAll[k], v], axis=0)
                         continue
                     pass
@@ -391,12 +395,12 @@ def evaluateBatch(options, gt_dict=None, pred_dict=None):
                 #print('find ground-truths among predictions')
                 #statistics = findMatches(result_gt, result_pred, distanceThreshold=10)
                 #print(statistics)
-                print('statistics', [(k, float(v[0]) / max(v[1], 1), float(v[0]) / max(v[2], 1)) for k, v in statistics.iteritems()])
-                #print('topology statistics', [(k, float(v[0]) / max(v[1], 1), float(v[0]) / max(v[2], 1)) for k, v in topologyStatistics.iteritems()])
+                print('statistics', [(k, float(v[0]) / max(v[1], 1), float(v[0]) / max(v[2], 1)) for k, v in statistics.items()])
+                #print('topology statistics', [(k, float(v[0]) / max(v[1], 1), float(v[0]) / max(v[2], 1)) for k, v in topologyStatistics.items()])
                 print('finish reconstruction', gt_dict['image_path'][batchIndex])
-                for k, v in statistics.iteritems():
+                for k, v in statistics.items():
                     if k in statisticsSum:
-                        for c in xrange(3):
+                        for c in range(3):
                             statisticsSum[k][c] += v[c]
                             continue
                     else:
@@ -413,7 +417,7 @@ def evaluateBatch(options, gt_dict=None, pred_dict=None):
             #     #raise e
         continue
     print(names)
-    print('final statistics', [(k, float(v[0]) / max(v[1], 1), float(v[0]) / max(v[2], 1)) for k, v in statisticsSum.iteritems()])
+    print('final statistics', [(k, float(v[0]) / max(v[1], 1), float(v[0]) / max(v[2], 1)) for k, v in statisticsSum.items()])
     np.save(options.test_dir + '/numbers.npy', statisticsSum)
     #print(statisticsSum)
     return

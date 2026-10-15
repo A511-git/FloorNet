@@ -1,4 +1,7 @@
-import tensorflow as tf
+try:
+    import tensorflow.compat.v1 as tf
+except (ImportError, AttributeError):
+    import tensorflow as tf
 
 try:
     _parse_example = tf.parse_single_example

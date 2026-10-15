@@ -1,4 +1,7 @@
-from gurobipy import *
+try:
+    from gurobipy import *
+except ImportError:
+    pass
 import cv2
 import numpy as np
 import sys
@@ -88,7 +91,7 @@ def findMatches(pred_dict, gt_dict, distanceThreshold, width=256, height=256):
   correctSums = {k: 0.0 for k in gt_dict}
   countsGT = {k: 0.0 for k in gt_dict}
   countsPred = {k: 0.0 for k in gt_dict}
-  for objectType, objects in gt_dict.iteritems():
+  for objectType, objects in gt_dict.items():
     if objectType not in pred_dict:
       print(objectType + ' not in prediction')
       continue
@@ -165,12 +168,12 @@ def findMatches(pred_dict, gt_dict, distanceThreshold, width=256, height=256):
                 continue
               pass
             continue
-          for orientation, hasMatch in matchedOrientations.iteritems():
+          for orientation, hasMatch in matchedOrientations.items():
             if not hasMatch:
               print(pointIndexGT, pointGT, orientation, 'point not found')
               pass
             continue
-          numMatches += len([orientation for orientation, value in matchedOrientations.iteritems() if value == True])
+          numMatches += len([orientation for orientation, value in matchedOrientations.items() if value == True])
           continue
 
         correctSums[objectType] += numMatches
@@ -308,7 +311,7 @@ def findMatches(pred_dict, gt_dict, distanceThreshold, width=256, height=256):
 
     rooms = []
     indexMap = {}
-    for roomIndex, labels in roomLabels.iteritems():
+    for roomIndex, labels in roomLabels.items():
       indexMap[roomIndex] = len(rooms)
       mask = roomRegions == roomIndex
       mask = cv2.dilate(mask.astype(np.uint8), np.ones((3, 3)), iterations=wallLineWidth)
@@ -370,7 +373,7 @@ def findMatches(pred_dict, gt_dict, distanceThreshold, width=256, height=256):
       pass
     continue
   #print(labelRooms[1])
-  statistics = {k: [v, countsGT[k], countsPred[k]] for k, v in correctSums.iteritems()}
+  statistics = {k: [v, countsGT[k], countsPred[k]] for k, v in correctSums.items()}
 
 
   roomIndexMap = np.zeros(len(roomsInfo[1][0]))
@@ -1127,7 +1130,7 @@ def filterWallsDynamic(wallPoints, wallLines):
     image = drawLines('', width, height, wallPoints, wallLines, [], None, lineWidth=0, lineColor=np.array([0, 0, 128]))
     image = drawPoints('', width, height, wallPoints, image, pointSize=3, pointColor=255)
     cv2.imwrite('test/walls/walls_' + str(iteration) + '.png', image)
-    for pointIndex, _ in invalidPointMask.iteritems():
+    for pointIndex, _ in invalidPointMask.items():
       newImage = image.copy()
       newImage = drawPoints('', width, height, [wallPoints[pointIndex]], newImage, pointSize=3, pointColor=np.array([255, 0, 255]))
       connectingLines = []
@@ -1442,7 +1445,7 @@ def findIconsFromLines(iconPoints, iconLines):
       continue
     continue
 
-  for pointIndex, orientationNeighborMap in pointOrientationNeighborsMap.iteritems():
+  for pointIndex, orientationNeighborMap in pointOrientationNeighborsMap.items():
     if 1 not in orientationNeighborMap or 2 not in orientationNeighborMap:
       continue
     for neighborIndex_1 in orientationNeighborMap[1]:
@@ -1532,8 +1535,8 @@ def findLineNeighbors(points, lines, labelVotesMap, gap):
     hasChange = False
     for lineIndex, neighbors in enumerate(lineNeighbors):
       lineDim = calcLineDim(points, lines[lineIndex])
-      for neighbor_1, region_1 in neighbors[1].iteritems():
-        for neighbor_2, _ in neighbors[0].iteritems():
+      for neighbor_1, region_1 in neighbors[1].items():
+        for neighbor_2, _ in neighbors[0].items():
           if neighbor_2 not in lineNeighbors[neighbor_1][0]:
             continue
           region_2 = lineNeighbors[neighbor_1][0][neighbor_2]
@@ -1551,7 +1554,7 @@ def findLineNeighbors(points, lines, labelVotesMap, gap):
 
   for lineIndex, directionNeighbors in enumerate(lineNeighbors):
     for direction, neighbors in enumerate(directionNeighbors):
-      for neighbor, region in neighbors.iteritems():
+      for neighbor, region in neighbors.items():
         labelVotes = labelVotesMap[:, region[1][1], region[1][0]] + labelVotesMap[:, region[0][1], region[0][0]] - labelVotesMap[:, region[0][1], region[1][0]] - labelVotesMap[:, region[1][1], region[0][0]]
         neighbors[neighbor] = labelVotes
         continue
@@ -1611,7 +1614,7 @@ def findRectangleLineNeighbors(rectanglePoints, rectangles, linePoints, lines, l
 
       continue
     if len(rectangleLineNeighbors[rectangleIndex]) == 0 or True:
-      for index, lineNeighbor in minDistanceLineNeighbors.iteritems():
+      for index, lineNeighbor in minDistanceLineNeighbors.items():
         rectangleLineNeighbors[rectangleIndex][lineNeighbor[0]] = lineNeighbor[2]
         continue
       pass
@@ -2276,7 +2279,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
           pointIconMap[pointIndex].append(iconIndex)
           continue
         continue
-      for pointIndex, iconIndices in pointIconMap.iteritems():
+      for pointIndex, iconIndices in pointIconMap.items():
         break
         iconSum = LinExpr()
         for iconIndex in iconIndices:
@@ -2327,7 +2330,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
       if not closeRooms[label]:
         continue
       for pointIndex, orientationLinesMap in enumerate(wallPointOrientationLinesMap):
-        for orientation, lines in orientationLinesMap.iteritems():
+        for orientation, lines in orientationLinesMap.items():
           direction = int(orientation in [1, 2])
           lineSum = LinExpr()
           for lineIndex in lines:
@@ -2366,7 +2369,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
     for lineIndex, directionNeighbors in enumerate(wallLineNeighbors):
       for direction, neighbors in enumerate(directionNeighbors):
         labelVotesSum = np.zeros(NUM_FINAL_ROOMS)
-        for neighbor, labelVotes in neighbors.iteritems():
+        for neighbor, labelVotes in neighbors.items():
           labelVotesSum += labelVotes
           continue
 
@@ -2438,7 +2441,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
         continue
       continue
 
-    for pointIndex, iconIndices in pointIconsMap.iteritems():
+    for pointIndex, iconIndices in pointIconsMap.items():
       iconSum = LinExpr(0)
       for iconIndex in iconIndices:
         iconSum += i_r[iconIndex]
@@ -2657,7 +2660,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
     #line sum constraints and objectives
     for pointIndex, orientationLinesMap in enumerate(wallPointOrientationLinesMap):
       pointLineSum = LinExpr(0)
-      for orientation, lines in orientationLinesMap.iteritems():
+      for orientation, lines in orientationLinesMap.items():
         #if len(lines) > 1:
         #print(lines)
         lineSum = LinExpr(0)
@@ -2943,7 +2946,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
         orientations = []
         orientationLines = {}
-        for orientation, lines in wallPointOrientationLinesMap[pointIndex].iteritems():
+        for orientation, lines in wallPointOrientationLinesMap[pointIndex].items():
           orientationLine = -1
           for lineIndex in lines:
             if w_l[lineIndex].x > 0.5:

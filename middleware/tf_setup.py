@@ -91,6 +91,9 @@ def _patch_contrib_slim():
         tf.contrib = types.ModuleType("contrib")
     tf.contrib.slim = slim
 
+    sys.modules["tensorflow.contrib"] = tf.contrib
+    sys.modules["tensorflow.contrib.slim"] = slim
+
     if not hasattr(tf.contrib, "data"):
         data_mod = types.ModuleType("data")
         import tensorflow.compat.v1 as tf1
@@ -102,6 +105,7 @@ def _patch_contrib_slim():
                 lambda ds: ds.batch(batch_size, drop_remainder=True)
             )
         tf.contrib.data = data_mod
+    sys.modules["tensorflow.contrib.data"] = tf.contrib.data
 
 
 def _patch_tf1_data():
@@ -127,6 +131,34 @@ def _patch_tf1_data():
         pass
 
 
+def _patch_tf1_bridge():
+    import tensorflow as tf
+    import tensorflow.compat.v1 as tf1
+
+    # Bridge tf1 attributes onto root tf module (e.g. variable_scope, placeholder, Session)
+    for attr in dir(tf1):
+        if not hasattr(tf, attr):
+            try:
+                setattr(tf, attr, getattr(tf1, attr))
+            except Exception:
+                pass
+
+    if not hasattr(tf1, "contrib"):
+        tf1.contrib = tf.contrib
+    if not hasattr(tf1.contrib, "slim"):
+        tf1.contrib.slim = getattr(tf.contrib, "slim", None)
+
+    # Ensure tf.python_io has TFRecordWriter
+    if not hasattr(tf, "python_io"):
+        if hasattr(tf1, "python_io"):
+            tf.python_io = tf1.python_io
+        elif hasattr(tf, "io"):
+            tf.python_io = tf.io
+
+    # Point sys.modules["tensorflow"] to tf1 so any subsequent `import tensorflow as tf` gets TF1 APIs
+    sys.modules["tensorflow"] = tf1
+
+
 def configure(enable_gpu_growth=True):
     global _CONFIGURED
     if _CONFIGURED:
@@ -137,6 +169,7 @@ def configure(enable_gpu_growth=True):
     _install_tflearn_shim()
     _patch_contrib_slim()
     _patch_tf1_data()
+    _patch_tf1_bridge()
 
     if enable_gpu_growth:
         try:
