@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 infer.py - FloorNet Batch & Single-File Inference Pipeline
 
@@ -8,14 +9,14 @@ complete per-scene bundles preserving folder hierarchy.
 
 Per-scene output bundle:
   <output_dir>/<relative_path>/<scene_name>/
-    ├── pointcloud.ply              (Sampled 50k point cloud with RGB)
-    ├── floorplan.txt               (Reconstructed vector wall lines)
-    ├── floorplan_representation.txt(Full vector floorplan with rooms, doors, icons)
-    ├── doors.txt                   (Detected door coordinates & types)
-    ├── icons.txt                   (Detected furniture icons & types)
-    ├── floorplan.png               (High-resolution 1000x1000 rendered floorplan)
-    ├── density.png                 (256x256 top-down projection density map)
-    └── [optional] scene.tfrecords  (FloorNet dataset protobuf record)
+    |-- pointcloud.ply              (Sampled 50k point cloud with RGB)
+    |-- floorplan.txt               (Reconstructed vector wall lines)
+    |-- floorplan_representation.txt(Full vector floorplan with rooms, doors, icons)
+    |-- doors.txt                   (Detected door coordinates & types)
+    |-- icons.txt                   (Detected furniture icons & types)
+    |-- floorplan.png               (High-resolution 1000x1000 rendered floorplan)
+    |-- density.png                 (256x256 top-down projection density map)
+    \-- [optional] scene.tfrecords  (FloorNet dataset protobuf record)
 """
 
 from __future__ import print_function
