@@ -219,4 +219,4 @@ def getDatasetVal(filenames, augmentation, readImageFeatures, batchSize):
     if len(filenames) == 1:
         return tf.data.TFRecordDataset(filenames[0]).repeat().map(functools.partial(parse_fn, augmentation=augmentation, readImageFeatures=readImageFeatures), num_parallel_calls=NUM_THREADS).batch(batchSize).prefetch(1)
     else:
-        return tf.data.Dataset.from_tensor_slices(filenames).interleave(lambda x: tf.data.TFRecordDataset(x).map(functools.partial(parse_fn, augmentation=augmentation, readImageFeatures=readImageFeatures), num_parallel_calls=NUM_THREADS), cycle_length=len(filenames), block_length=batchSize).apply(tf.contrib.data.batch_and_drop_remainder(batchSize)).prefetch(1)
+        return tf.data.Dataset.from_tensor_slices(filenames).interleave(lambda x: tf.data.TFRecordDataset(x).map(functools.partial(parse_fn, augmentation=augmentation, readImageFeatures=readImageFeatures), num_parallel_calls=NUM_THREADS), cycle_length=len(filenames), block_length=batchSize).batch(batchSize, drop_remainder=True).prefetch(1)

@@ -778,8 +778,14 @@ def train(options):
 
     input_dict, gt_dict = iterator.get_next()
 
-    iterator_train = dataset_train.make_one_shot_iterator()
-    iterator_val = dataset_val.make_initializable_iterator()
+    if hasattr(dataset_train, "make_one_shot_iterator"):
+        iterator_train = dataset_train.make_one_shot_iterator()
+    else:
+        iterator_train = tf.compat.v1.data.make_one_shot_iterator(dataset_train)
+    if hasattr(dataset_val, "make_initializable_iterator"):
+        iterator_val = dataset_val.make_initializable_iterator()
+    else:
+        iterator_val = tf.compat.v1.data.make_initializable_iterator(dataset_val)
 
     pred_dict, debug_dict = build_graph(options, input_dict)
     dataset_flag = input_dict['flags'][0, 0]
@@ -1022,7 +1028,10 @@ def test(options):
     dataset = getDatasetVal(filenames, '', '4' in options.branches, options.batchSize)
 
 
-    iterator = dataset.make_one_shot_iterator()
+    if hasattr(dataset, "make_one_shot_iterator"):
+        iterator = dataset.make_one_shot_iterator()
+    else:
+        iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
     input_dict, gt_dict = iterator.get_next()
 
 

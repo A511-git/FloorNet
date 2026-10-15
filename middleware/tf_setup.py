@@ -91,6 +91,41 @@ def _patch_contrib_slim():
         tf.contrib = types.ModuleType("contrib")
     tf.contrib.slim = slim
 
+    if not hasattr(tf.contrib, "data"):
+        data_mod = types.ModuleType("data")
+        import tensorflow.compat.v1 as tf1
+
+        if hasattr(tf1.data, "batch_and_drop_remainder"):
+            data_mod.batch_and_drop_remainder = tf1.data.batch_and_drop_remainder
+        else:
+            data_mod.batch_and_drop_remainder = lambda batch_size: (
+                lambda ds: ds.batch(batch_size, drop_remainder=True)
+            )
+        tf.contrib.data = data_mod
+
+
+def _patch_tf1_data():
+    import tensorflow as tf
+    import tensorflow.compat.v1 as tf1
+
+    try:
+        if not hasattr(tf.data.Dataset, "make_one_shot_iterator") and hasattr(
+            tf1.data, "make_one_shot_iterator"
+        ):
+            tf.data.Dataset.make_one_shot_iterator = (
+                lambda self: tf1.data.make_one_shot_iterator(self)
+            )
+        if not hasattr(tf.data.Dataset, "make_initializable_iterator") and hasattr(
+            tf1.data, "make_initializable_iterator"
+        ):
+            tf.data.Dataset.make_initializable_iterator = (
+                lambda self: tf1.data.make_initializable_iterator(self)
+            )
+        if not hasattr(tf.data, "Iterator") and hasattr(tf1.data, "Iterator"):
+            tf.data.Iterator = tf1.data.Iterator
+    except Exception:
+        pass
+
 
 def configure(enable_gpu_growth=True):
     global _CONFIGURED
@@ -101,6 +136,7 @@ def configure(enable_gpu_growth=True):
     tf.compat.v1.disable_v2_behavior()
     _install_tflearn_shim()
     _patch_contrib_slim()
+    _patch_tf1_data()
 
     if enable_gpu_growth:
         try:

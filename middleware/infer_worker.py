@@ -124,7 +124,10 @@ def run_inference(tfrecord_path, out_dir, scene_name, checkpoint_dir, gpu="0", s
 
     tf.reset_default_graph()
     dataset = getDatasetVal([tfrecord_path], "", False, options.batchSize)
-    iterator = dataset.make_one_shot_iterator()
+    if hasattr(dataset, "make_one_shot_iterator"):
+        iterator = dataset.make_one_shot_iterator()
+    else:
+        iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
     input_dict, gt_dict = iterator.get_next()
     pred_dict, debug_dict = build_graph(options, input_dict)
     dataset_flag = input_dict["flags"][0, 0]

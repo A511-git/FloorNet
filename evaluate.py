@@ -58,7 +58,10 @@ def evaluate(options):
     dataset = getDatasetVal(filenames, '', '4' in options.branches, options.batchSize)
 
 
-    iterator = dataset.make_one_shot_iterator()
+    if hasattr(dataset, "make_one_shot_iterator"):
+        iterator = dataset.make_one_shot_iterator()
+    else:
+        iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
     input_dict, gt_dict = iterator.get_next()
 
 
