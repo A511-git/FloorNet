@@ -423,17 +423,28 @@ def main():
             # Run Neural Network prediction
             pred_wc, pred_oc, pred_ic, pred_icon, pred_room = model.predict(features_6ch, point_indices)
 
-            # Reconstruct floorplan polygon via Integer Programming
+            # Reconstruct floorplan polygon via Quadratic/Integer Programming
             solver_prefix = (scene_dir + os.sep).replace("\\", "/")
-            result_pred = reconstructFloorplan(
-                pred_wc,
-                pred_oc,
-                pred_ic,
-                pred_icon,
-                pred_room,
-                output_prefix=solver_prefix,
-                densityImage=density_vis
-            )
+            try:
+                result_pred = reconstructFloorplan(
+                    pred_wc,
+                    pred_oc,
+                    pred_ic,
+                    pred_icon,
+                    pred_room,
+                    densityImage=density_vis,
+                    debug_prefix=solver_prefix
+                )
+            except TypeError:
+                result_pred = reconstructFloorplan(
+                    pred_wc,
+                    pred_oc,
+                    pred_ic,
+                    pred_icon,
+                    pred_room,
+                    output_prefix=solver_prefix,
+                    densityImage=density_vis
+                )
 
             # Export final rendered image, representation, doors, and icons
             if result_pred and isinstance(result_pred, dict):
