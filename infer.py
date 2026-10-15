@@ -307,8 +307,8 @@ def main():
                         help="Path to FloorNet model checkpoint directory.")
     parser.add_argument("--gpu", default="0",
                         help="GPU device id to use ('0', '1', or '-1' for CPU).")
-    parser.add_argument("--solver", choices=["ip", "qp"], default="ip",
-                        help="Floorplan reconstruction solver: 'ip' (PuLP open-source, default) or 'qp' (Gurobi).")
+    parser.add_argument("--solver", choices=["qp", "ip"], default="qp",
+                        help="Floorplan reconstruction solver: 'qp' (Gurobi, original default) or 'ip' (PuLP).")
     parser.add_argument("--min-conf", type=float, default=0.1,
                         help="Confidence threshold for depth.npz points (default: 0.1).")
     parser.add_argument("--views", default=None,
