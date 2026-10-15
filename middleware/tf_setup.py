@@ -11,54 +11,76 @@ import sys
 import types
 
 _CONFIGURED = False
+_IS_TRAINING = [False]
+
+
+def _batch_normalization(inputs, **kwargs):
+    import tf_slim as slim
+
+    kwargs.setdefault("is_training", _IS_TRAINING[0])
+    kwargs.setdefault("fused", True)
+    return slim.batch_norm(inputs, **kwargs)
+
+
+def _max_pool_2d(inputs, kernel_size, strides=1, padding="valid", **kwargs):
+    import tensorflow.compat.v1 as tf
+
+    if isinstance(kernel_size, (int, float)):
+        kh, kw = int(kernel_size), int(kernel_size)
+    else:
+        kh, kw = int(kernel_size[0]), int(kernel_size[1])
+
+    if isinstance(strides, (int, float)):
+        sh, sw = int(strides), int(strides)
+    else:
+        sh, sw = int(strides[0]), int(strides[1])
+
+    pad = padding.upper() if isinstance(padding, str) else "VALID"
+    name = kwargs.get("name", None)
+    return tf.nn.max_pool(
+        inputs,
+        ksize=[1, kh, kw, 1],
+        strides=[1, sh, sw, 1],
+        padding=pad,
+        name=name,
+    )
+
+
+def _is_training(mode=None, session=None):
+    if mode is not None:
+        _IS_TRAINING[0] = bool(mode)
+    return _IS_TRAINING[0]
+
+
+class _ConfigShim(object):
+    @staticmethod
+    def init_training_mode():
+        return None
+
+
+class _LayersShim(object):
+    def __init__(self):
+        self.normalization = types.SimpleNamespace(batch_normalization=_batch_normalization)
+        self.conv = types.SimpleNamespace(max_pool_2d=_max_pool_2d)
+        self.max_pool_2d = _max_pool_2d
 
 
 def _install_tflearn_shim():
-    import tensorflow.compat.v1 as tf
+    if "tflearn" in sys.modules and getattr(sys.modules["tflearn"], "_floornet_shim", False):
+        return
 
-    def batch_normalization(inputs, **kwargs):
-        import tf_slim as slim
+    shim = types.ModuleType("tflearn")
+    shim._floornet_shim = True
+    shim.layers = _LayersShim()
+    shim.config = _ConfigShim()
+    shim.is_training = _is_training
+    shim.init_graph = lambda *args, **kwargs: None
 
-        return slim.batch_norm(inputs, fused=True)
-
-    def max_pool_2d(inputs, kernel_size, strides=1, padding="valid"):
-        if isinstance(kernel_size, int):
-            kh, kw = kernel_size, kernel_size
-        else:
-            kh, kw = int(kernel_size[0]), int(kernel_size[1])
-        pad = padding.upper() if isinstance(padding, str) else "VALID"
-        return tf.nn.max_pool(
-            inputs,
-            ksize=[1, kh, kw, 1],
-            strides=[1, int(strides), int(strides), 1],
-            padding=pad,
-        )
-
-    class _Config(object):
-        @staticmethod
-        def init_training_mode():
-            return None
-
-    _is_training = [False]
-
-    @staticmethod
-    def is_training(mode=None):
-        if mode is not None:
-            _is_training[0] = bool(mode)
-        return _is_training[0]
-
-    class _Layers(object):
-        pass
-
-    _Layers.normalization = types.SimpleNamespace(batch_normalization=batch_normalization)
-    _Layers.max_pool_2d = staticmethod(max_pool_2d)
-
-    class _TflearnShim(object):
-        layers = _Layers()
-        config = _Config()
-        is_training = is_training
-
-    sys.modules["tflearn"] = _TflearnShim()
+    sys.modules["tflearn"] = shim
+    sys.modules["tflearn.layers"] = shim.layers
+    sys.modules["tflearn.layers.normalization"] = shim.layers.normalization
+    sys.modules["tflearn.layers.conv"] = shim.layers.conv
+    sys.modules["tflearn.config"] = shim.config
 
 
 def _patch_contrib_slim():

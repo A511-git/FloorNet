@@ -1,5 +1,10 @@
 import multiprocessing as mp
 import sys
+try:
+    from middleware.tf_setup import configure
+    configure()
+except Exception:
+    pass
 import tensorflow as tf
 import numpy as np
 import cv2
