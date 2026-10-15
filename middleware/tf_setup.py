@@ -159,6 +159,29 @@ def _patch_tf1_bridge():
     sys.modules["tensorflow"] = tf1
 
 
+def _patch_tf_keras():
+    if "tf_keras.legacy_tf_layers" in sys.modules:
+        return
+    try:
+        import tf_keras
+        if not hasattr(tf_keras, "legacy_tf_layers"):
+            try:
+                import tf_keras.src.legacy.layers as legacy_layers
+                tf_keras.legacy_tf_layers = legacy_layers
+                sys.modules["tf_keras.legacy_tf_layers"] = legacy_layers
+            except Exception:
+                pass
+    except ImportError:
+        try:
+            import tensorflow.python.keras.legacy_tf_layers as legacy_layers
+            mod = types.ModuleType("tf_keras")
+            mod.legacy_tf_layers = legacy_layers
+            sys.modules["tf_keras"] = mod
+            sys.modules["tf_keras.legacy_tf_layers"] = legacy_layers
+        except Exception:
+            pass
+
+
 def configure(enable_gpu_growth=True):
     global _CONFIGURED
     if _CONFIGURED:
@@ -166,6 +189,7 @@ def configure(enable_gpu_growth=True):
     import tensorflow as tf
 
     tf.compat.v1.disable_v2_behavior()
+    _patch_tf_keras()
     _install_tflearn_shim()
     _patch_contrib_slim()
     _patch_tf1_data()

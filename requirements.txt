@@ -7,11 +7,12 @@ scikit-image>=0.22
 Pillow>=10
 pulp>=2.8
 tensorflow>=2.16
+tf-keras>=2.16
 tf-slim>=1.1.0
 
-# --- Kaggle notebook (GPU on) — run these cells, not `uv pip` into /usr unless you know why ---
+# --- Kaggle notebook (GPU on) ---
 # !pip install -U pip
-# !pip install tensorflow tf-slim opencv-python-headless scikit-image Pillow pulp numpy
+# !pip install tensorflow tf-keras tf-slim opencv-python-headless scikit-image Pillow pulp numpy
 # !python -c "import tensorflow as tf; print('TF', tf.__version__, 'GPU', tf.config.list_physical_devices('GPU'))"
 # %cd /kaggle/working/FloorNet
 # !python check_tf.py

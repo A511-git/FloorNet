@@ -97,7 +97,7 @@ def run_inference(tfrecord_path, out_dir, scene_name, checkpoint_dir, gpu="0", s
     import tflearn
 
     from RecordReader import getDatasetVal
-    from train import build_graph, build_loss, parse_args
+    from train import build_graph, parse_args
 
     if solver == "ip":
         import IP as solver_module
@@ -130,10 +130,6 @@ def run_inference(tfrecord_path, out_dir, scene_name, checkpoint_dir, gpu="0", s
         iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
     input_dict, gt_dict = iterator.get_next()
     pred_dict, debug_dict = build_graph(options, input_dict)
-    dataset_flag = input_dict["flags"][0, 0]
-    loss, loss_list = build_loss(
-        options, pred_dict, gt_dict, dataset_flag, debug_dict, input_dict["flags"]
-    )
 
     var_to_restore = [v for v in tf.global_variables() if "is_training" not in v.name]
     config = tf.ConfigProto()
@@ -171,12 +167,13 @@ def main():
             gpu=args.gpu,
             solver=args.solver,
         )
-    except ImportError as e:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(
-            "Inference requires tensorflow>=2.15, tf-slim, opencv, pulp (see requirements.txt).",
+            "Inference requires tensorflow>=2.15, tf-keras, tf-slim, opencv, pulp (see requirements.txt).",
             file=sys.stderr,
         )
-        print(e, file=sys.stderr)
         return 1
     return 0
 
