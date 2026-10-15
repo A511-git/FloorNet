@@ -317,8 +317,8 @@ def main():
                         help="Path to FloorNet model checkpoint directory.")
     parser.add_argument("--gpu", default="0",
                         help="GPU device id to use ('0', '1', or '-1' for CPU).")
-    parser.add_argument("--solver", choices=["qp", "ip"], default="qp",
-                        help="Floorplan reconstruction solver: 'qp' (Gurobi, original default) or 'ip' (PuLP).")
+    parser.add_argument("--solver", choices=["ip", "qp"], default="ip",
+                        help="Floorplan reconstruction solver: 'ip' (PuLP/CBC open-source, default) or 'qp' (Gurobi, requires license).")
     parser.add_argument("--min-conf", type=float, default=0.1,
                         help="Confidence threshold for depth.npz points (default: 0.1).")
     parser.add_argument("--views", default=None,
@@ -433,6 +433,7 @@ def main():
                     pred_icon,
                     pred_room,
                     densityImage=density_vis,
+                    output_prefix=solver_prefix,
                     debug_prefix=solver_prefix
                 )
             except TypeError:
@@ -442,8 +443,8 @@ def main():
                     pred_ic,
                     pred_icon,
                     pred_room,
-                    output_prefix=solver_prefix,
-                    densityImage=density_vis
+                    densityImage=density_vis,
+                    debug_prefix=solver_prefix
                 )
 
             # Export final rendered image, representation, doors, and icons

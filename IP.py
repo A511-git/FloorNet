@@ -6,6 +6,7 @@ import sys
 import csv
 import copy
 from utils import *
+from floorplan_utils import *
 from skimage import measure
 
 GAPS = {'wall_extraction': 5, 'door_extraction': 5, 'icon_extraction': 5, 'wall_neighbor': 5, 'door_neighbor': 5, 'icon_neighbor': 5, 'wall_conflict': 5, 'door_conflict': 5, 'icon_conflict': 5, 'wall_icon_neighbor': 5, 'wall_icon_conflict': 5, 'wall_door_neighbor': 5, 'door_point_conflict': 5}
@@ -35,8 +36,8 @@ NUM_DOOR_TYPES = 2
 #NUM_LABELS = NUM_WALL_TYPES + NUM_DOOR_TYPES + NUM_ICONS + NUM_ROOMS + 1
 NUM_LABELS = NUM_ICONS + NUM_ROOMS
 
-WALL_LABEL_OFFSET = NUM_ROOMS + 1
-DOOR_LABEL_OFFSET = NUM_ICONS + 1
+WALL_LABEL_OFFSET = NUM_FINAL_ROOMS
+DOOR_LABEL_OFFSET = NUM_FINAL_ICONS + 1
 ICON_LABEL_OFFSET = 0
 ROOM_LABEL_OFFSET = NUM_ICONS
 
@@ -1054,7 +1055,7 @@ def findCandidatesFromHeatmaps(iconHeatmaps, iconPointOffset, doorPointOffset):
   newIconPoints = []
   newDoorLines = []
   newDoorPoints = []
-  for iconIndex in range(1, NUM_ICONS + 2):
+  for iconIndex in range(1, NUM_ICONS):
     heatmap = iconHeatmaps[:, :, iconIndex] > 0.5
     kernel = np.ones((3, 3), dtype=np.uint8)
     heatmap = cv2.dilate(cv2.erode(heatmap.astype(np.uint8), kernel), kernel)
@@ -1064,7 +1065,7 @@ def findCandidatesFromHeatmaps(iconHeatmaps, iconPointOffset, doorPointOffset):
       ys, xs = regionMask.nonzero()
       minX, maxX = xs.min(), xs.max()
       minY, maxY = ys.min(), ys.max()
-      if iconIndex <= NUM_ICONS:
+      if iconIndex <= NUM_FINAL_ICONS:
         if maxX - minX < GAPS['icon_extraction'] or maxY - minY < GAPS['icon_extraction']:
           continue
         mask = regionMask[minY:maxY + 1, minX:maxX + 1]
@@ -1226,10 +1227,10 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
   wallMask = drawLineMask(width, height, wallPoints, wallLines)
 
-  labelVotesMap = np.zeros((NUM_ROOMS, height, width))
+  labelVotesMap = np.zeros((NUM_FINAL_ROOMS, height, width))
   #labelMap = np.zeros((NUM_LABELS, height, width))
   #semanticHeatmaps = np.concatenate([iconHeatmaps, roomHeatmaps], axis=2)
-  for segmentIndex in range(NUM_ROOMS):
+  for segmentIndex in range(NUM_FINAL_ROOMS):
     segmentation_img = roomHeatmaps[:, :, segmentIndex]
     #segmentation_img = (segmentation_img > 0.5).astype(np.float)
     labelVotesMap[segmentIndex] = segmentation_img
@@ -1351,7 +1352,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
     i_types = []
     for iconIndex in range(len(icons)):
-      i_types.append([LpVariable(cat=LpBinary, name="icon_type_" + str(iconIndex) + "_" + str(typeIndex)) for typeIndex in range(NUM_ICONS)])
+      i_types.append([LpVariable(cat=LpBinary, name="icon_type_" + str(iconIndex) + "_" + str(typeIndex)) for typeIndex in range(NUM_FINAL_ICONS)])
       continue
 
     l_dir_labels = []
@@ -1359,7 +1360,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
       dir_labels = []
       for direction in range(2):
         labels = []
-        for label in range(NUM_ROOMS):
+        for label in range(NUM_FINAL_ROOMS):
           labels.append(LpVariable(cat=LpBinary, name="line_" + str(lineIndex) + "_" + str(direction) + "_" + str(label)))
         dir_labels.append(labels)
       l_dir_labels.append(dir_labels)
@@ -1398,7 +1399,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
     for lineIndex in range(len(wallLines)):
       for direction in range(2):
         labelSum = LpAffineExpression()
-        for label in range(NUM_ROOMS):
+        for label in range(NUM_FINAL_ROOMS):
           labelSum += l_dir_labels[lineIndex][direction][label]
           continue
         model += (labelSum == w_l[lineIndex], 'label_sum_' + str(lineIndex) + '_' + str(direction))
@@ -1420,7 +1421,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
     ## Loop constraints
     closeRooms = {}
-    for label in range(NUM_ROOMS):
+    for label in range(NUM_FINAL_ROOMS):
       closeRooms[label] = True
       continue
     closeRooms[1] = False
@@ -1429,7 +1430,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
     closeRooms[8] = False
     closeRooms[9] = False
 
-    for label in range(NUM_ROOMS):
+    for label in range(NUM_FINAL_ROOMS):
       if not closeRooms[label]:
         continue
       for pointIndex, orientationLinesMap in enumerate(wallPointOrientationLinesMap):
@@ -1471,7 +1472,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
     ## Wall line room semantic objectives
     for lineIndex, directionNeighbors in enumerate(wallLineNeighbors):
       for direction, neighbors in enumerate(directionNeighbors):
-        labelVotesSum = np.zeros(NUM_ROOMS)
+        labelVotesSum = np.zeros(NUM_FINAL_ROOMS)
         for neighbor, labelVotes in neighbors.items():
           labelVotesSum += labelVotes
           continue
@@ -1481,7 +1482,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
           continue
         labelVotesSum /= votesSum
 
-        for label in range(NUM_ROOMS):
+        for label in range(NUM_FINAL_ROOMS):
           obj += (l_dir_labels[lineIndex][direction][label] * (0.0 - labelVotesSum[label]) * labelWeight)
           continue
         continue
@@ -1597,18 +1598,22 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
         exit(1)
         pass
 
-      iconTypeConfidence = iconHeatmaps[y_1:y_2 + 1, x_1:x_2 + 1, :NUM_ICONS + 1].sum(axis=(0, 1)) / iconArea
+      iconTypeConfidence = iconHeatmaps[y_1:y_2 + 1, x_1:x_2 + 1, :NUM_FINAL_ICONS + 1].sum(axis=(0, 1)) / iconArea
+      iconTypeConfidence[1] += iconTypeConfidence[8]
+      iconTypeConfidence[6] += iconTypeConfidence[9]
+      iconTypeConfidence[8] = 0
+      iconTypeConfidence[9] = 0
       iconTypeConfidence = iconTypeConfidence[1:] - iconTypeConfidence[0]
 
       if not gt:
-        iconPointConfidence = (iconCornerHeatmaps[int(round(point_1[1])), int(round(point_1[0])), 2] + iconCornerHeatmaps[int(round(point_2[1])), int(round(point_2[0])), 3] + iconCornerHeatmaps[int(round(point_3[1])), int(round(point_3[0])), 1] + iconCornerHeatmaps[int(round(point_4[1])), int(round(point_4[0])), 0]) // 4 - 0.5
+        iconPointConfidence = (iconCornerHeatmaps[int(round(point_1[1])), int(round(point_1[0])), 2] + iconCornerHeatmaps[int(round(point_2[1])), int(round(point_2[0])), 3] + iconCornerHeatmaps[int(round(point_3[1])), int(round(point_3[0])), 1] + iconCornerHeatmaps[int(round(point_4[1])), int(round(point_4[0])), 0]) / 4.0 - 0.5
         iconConfidence = (iconTypeConfidence + iconPointConfidence) * 0.5
       else:
         iconConfidence = iconTypeConfidence
         pass
 
       #print('icon confidence', iconConfidence)
-      for typeIndex in range(NUM_ICONS):
+      for typeIndex in range(NUM_FINAL_ICONS):
         obj += (-i_types[iconIndex][typeIndex] * (iconConfidence[typeIndex]) * iconTypeWeight)
         continue
       continue
@@ -1616,7 +1621,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
     ## Icon type one hot constraints
     for iconIndex in range(len(icons)):
       typeSum = LpAffineExpression()
-      for typeIndex in range(NUM_ICONS - 1):
+      for typeIndex in range(NUM_FINAL_ICONS - 1):
         typeSum += i_types[iconIndex][typeIndex]
         continue
       model += (typeSum == i_r[iconIndex])
@@ -1702,7 +1707,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
         labels = [11, 11]
         for direction in range(2):
-          for label in range(NUM_ROOMS):
+          for label in range(NUM_FINAL_ROOMS):
             if l_dir_labels[lineIndex][direction][label].varValue > 0.5:
               labels[direction] = label
               break
@@ -1761,7 +1766,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
         filteredIcons.append(icons[iconIndex])
         iconType = -1
-        for typeIndex in range(NUM_ICONS):
+        for typeIndex in range(NUM_FINAL_ICONS):
           if i_types[iconIndex][typeIndex].varValue > 0.5:
             iconType = typeIndex
             break
