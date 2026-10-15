@@ -7,10 +7,10 @@ from floorplan_utils import *
 def warpIndices(xs, ys, gridStride, gridWidth, gridHeight, width, height, gridXsTarget, gridYsTarget):
     numPoints = xs.shape[0]
 
-    minXs = xs / gridStride
-    minYs = ys / gridStride
-    maxXs = xs / gridStride + 1
-    maxYs = ys / gridStride + 1
+    minXs = xs // gridStride
+    minYs = ys // gridStride
+    maxXs = xs // gridStride + 1
+    maxYs = ys // gridStride + 1
 
     topLeft = tf.expand_dims(minYs * gridWidth + minXs, -1)
     topRight = tf.expand_dims(minYs * gridWidth + maxXs, -1)
@@ -55,7 +55,7 @@ def getCoarseIndicesMaps(indicesMap, width=256, height=256, batchIndex=0):
         if strideIndex == 0:
             indicesMaps.append(indicesMap + batchIndex * width * height)
         else:
-            indicesMaps.append(indicesMap / (width * stride) * (width / stride) + indicesMap % width / stride + batchIndex * width / stride * height / stride)
+            indicesMaps.append(tf.cast(indicesMap // (width * stride) * (width // stride) + (indicesMap % width) // stride + batchIndex * (width // stride) * (height // stride), tf.int32))
             pass
         #print(indicesMaps)
         continue
@@ -70,7 +70,7 @@ def getCoarseIndicesMapsBatch(indicesMap, width=256, height=256):
         if strideIndex == 0:
             indicesMaps.append(indicesMap)
         else:
-            indicesMaps.append(indicesMap / (width * stride) * (width / stride) + indicesMap % width / stride)
+            indicesMaps.append(tf.cast(indicesMap // (width * stride) * (width // stride) + (indicesMap % width) // stride, tf.int32))
             pass
         #print(indicesMaps)
         continue
@@ -90,7 +90,7 @@ def augmentWarping(pointcloudIndices, corners, heatmaps, gridStride=16, randomSc
     gridXsTarget = tf.cast(gridXs, tf.float32) + tf.random_normal(stddev=randomScale, shape=[gridHeight * gridWidth])
     gridYsTarget = tf.cast(gridYs, tf.float32) + tf.random_normal(stddev=randomScale, shape=[gridHeight * gridWidth])
 
-    xsTarget, ysTarget = warpIndices(pointcloudIndices % width, pointcloudIndices / width, gridStride, gridWidth, gridHeight, width, height, gridXsTarget, gridYsTarget)
+    xsTarget, ysTarget = warpIndices(pointcloudIndices % width, pointcloudIndices // width, gridStride, gridWidth, gridHeight, width, height, gridXsTarget, gridYsTarget)
 
     newPointcloudIndices = tf.clip_by_value(ysTarget, 0, height - 1) * width + tf.clip_by_value(xsTarget, 0, width - 1)
 
@@ -103,7 +103,7 @@ def augmentScaling(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatur
     width = WIDTH
     height = HEIGHT
     xs = pointcloudIndices % width
-    ys = pointcloudIndices / width
+    ys = pointcloudIndices // width
 
     imageSize = tf.constant((height, width), dtype=np.float32)
     #randomScale = pow(2.0, tf.random.uniform([1]) - 1)
@@ -125,7 +125,7 @@ def augmentScaling(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatur
     validMask = tf.logical_and(tf.logical_and(tf.greater_equal(newCorners[:, 0], 0), tf.greater_equal(newCorners[:, 1], 0)), tf.logical_and(tf.less(newCorners[:, 0], WIDTH), tf.less(newCorners[:, 1], HEIGHT)))
     newCorners = tf.boolean_mask(newCorners, validMask)
 
-    for index, (featureSize, numChannels) in enumerate(zip(SIZES, NUM_CHANNELS)[1:]):
+    for index, (featureSize, numChannels) in enumerate(list(zip(SIZES, NUM_CHANNELS))[1:]):
         if index in imageFeatures:
             imageFeatures[index] = tf.image.resize_image_with_crop_or_pad(tf.image.resize_nearest_neighbor(tf.expand_dims(imageFeatures[index], 0), size = tf.cast(tf.round(tf.constant((featureSize, featureSize), dtype=tf.float32) * randomScale), tf.int32)), featureSize, featureSize)[0]
             pass
@@ -144,7 +144,7 @@ def augmentFlipping(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatu
     #return pointcloud, pointcloudIndices, newCorners, heatmaps
 
     xsTarget = pointcloudIndices % width
-    ysTarget = pointcloudIndices / width
+    ysTarget = pointcloudIndices // width
 
     reverseChannelsY = tf.constant([-1, 2, 1, 0, 3, 7, 6, 5, 4, 10, 9, 8, 11, 12, 15, 14, 13, 16, 20, 19, 18, 17], dtype=tf.int32) + 1
     reverseChannelsX = tf.constant([-1, 0, 3, 2, 1, 5, 4, 7, 6, 8, 11, 10, 9, 12, 13, 16, 15, 14, 18, 17, 20, 19], dtype=tf.int32) + 1
@@ -160,7 +160,7 @@ def augmentFlipping(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatu
     corners = tf.cond(tf.equal(orientation % 2, 1), lambda: tf.stack([corners[:, 0], height - 1 - corners[:, 1], tf.gather_nd(reverseChannelsY, corners[:, 2:3])], axis=1), lambda: corners)
 
 
-    for index, (size, numChannels) in enumerate(zip(SIZES, NUM_CHANNELS)[1:]):
+    for index, (size, numChannels) in enumerate(list(zip(SIZES, NUM_CHANNELS))[1:]):
         if index in imageFeatures:
             imageFeatures[index] = tf.cond(orientation >= 2, lambda: imageFeatures[index][:, ::-1], lambda: imageFeatures[index])
             imageFeatures[index] = tf.cond(tf.equal(orientation % 2, 1), lambda: imageFeatures[index][::-1], lambda: imageFeatures[index])
