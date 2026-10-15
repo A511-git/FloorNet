@@ -61,6 +61,15 @@ SUPPORTED_EXTENSIONS = ('.ply', '.npz')
 DEFAULT_CHECKPOINT = os.path.join(ROOT_DIR, 'checkpoint', 'floornet_hybrid1_branch0123_wsf')
 
 
+def safe_makedirs(path):
+    if not os.path.exists(path):
+        try:
+            os.makedirs(path)
+        except OSError:
+            if not os.path.isdir(path):
+                raise
+
+
 # =====================================================================
 # Scan Discovery & Directory Tree Preservation
 # =====================================================================
@@ -241,7 +250,7 @@ def export_reconstruction(output_dir, scene_name, result_pred, density_img):
     """
     Exports vector floorplan, doors, icons, and renders visualization.
     """
-    os.makedirs(output_dir, exist_ok=True)
+    safe_makedirs(output_dir)
     labelIconMap = getLabelIconMap()
 
     # 1. Export doors.txt
@@ -357,7 +366,7 @@ def main():
     model = FloorNetModel(checkpoint_dir=args.checkpoint, gpu_id=args.gpu)
 
     output_root = os.path.abspath(args.output)
-    os.makedirs(output_root, exist_ok=True)
+    safe_makedirs(output_root)
 
     successful = 0
     failed = []
@@ -371,7 +380,7 @@ def main():
         else:
             scene_dir = os.path.join(output_root, scene_name)
 
-        os.makedirs(scene_dir, exist_ok=True)
+        safe_makedirs(scene_dir)
         print("\n[%d/%d] Processing: %s" % (idx, total_scans, scan_path))
         print("  -> Output folder: %s" % scene_dir)
 

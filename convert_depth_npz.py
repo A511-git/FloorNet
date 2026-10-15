@@ -141,7 +141,12 @@ def write_ply(filename, points, colors=None, binary=True):
     Writes 3D points and optional RGB colors to a .ply file.
     Uses fast binary writing by default.
     """
-    os.makedirs(os.path.dirname(os.path.abspath(filename)), exist_ok=True)
+    out_dir = os.path.dirname(os.path.abspath(filename))
+    if not os.path.exists(out_dir):
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            pass
     num_pts = len(points)
 
     if binary:

@@ -360,7 +360,12 @@ def write_tfrecord(output_path, scene_name, features_6ch, point_indices):
     """
     import tensorflow as tf
 
-    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    out_dir = os.path.dirname(os.path.abspath(output_path))
+    if not os.path.exists(out_dir):
+        try:
+            os.makedirs(out_dir)
+        except OSError:
+            pass
 
     def _bytes_feature(val):
         return tf.train.Feature(bytes_list=tf.train.BytesList(value=[val]))
