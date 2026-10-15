@@ -1688,24 +1688,47 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
     model += obj
 
+    # Auto-grant execute permission to bundled cbc if needed
+    try:
+      import pulp
+      pulp_dir = os.path.dirname(pulp.__file__)
+      for sub in ['64', '32']:
+        b_cbc = os.path.join(pulp_dir, 'solverdir', 'cbc', 'linux', sub, 'cbc')
+        if os.path.exists(b_cbc):
+          os.chmod(b_cbc, 493)  # 0755
+    except Exception:
+      pass
+
     solver = None
-    if os.path.exists('/usr/bin/cbc'):
-      solver = PULP_CBC_CMD(path='/usr/bin/cbc', msg=0)
-    elif os.path.exists('/kaggle/working/env2/bin/cbc'):
-      solver = PULP_CBC_CMD(path='/kaggle/working/env2/bin/cbc', msg=0)
-    elif pulp.LpSolverDefault is not None:
+    # 1. Try bundled PULP_CBC_CMD
+    try:
+      c = PULP_CBC_CMD(msg=0)
+      if c.available():
+        solver = c
+    except Exception:
+      pass
+
+    # 2. Try system binaries (/usr/bin/cbc, /usr/local/bin/cbc)
+    if solver is None:
+      for cbc_path in ['/usr/bin/cbc', '/usr/local/bin/cbc', '/kaggle/working/env2/bin/cbc']:
+        if os.path.exists(cbc_path):
+          for solver_cls in [COIN_CMD, PULP_CBC_CMD]:
+            try:
+              c = solver_cls(path=cbc_path, msg=0)
+              if c.available():
+                solver = c
+                break
+            except Exception:
+              pass
+        if solver is not None:
+          break
+
+    # 3. Fallback to default solver
+    if solver is None and pulp.LpSolverDefault is not None:
       solver = pulp.LpSolverDefault
-    else:
-      for candidate in [PULP_CBC_CMD(msg=0), GLPK_CMD(msg=0)]:
-        try:
-          if candidate.available():
-            solver = candidate
-            break
-        except Exception:
-          pass
 
     if solver is None:
-      print("ERROR: No solver found for PuLP! Run in Kaggle: !apt-get update && apt-get install -y coinor-cbc")
+      print("ERROR: No CBC solver found for PuLP!")
       return {}
 
     model.solve(solver)
