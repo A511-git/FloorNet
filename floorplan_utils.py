@@ -33,7 +33,7 @@ def getOrientationRanges(width, height):
 def getIconNames():
     iconNames = []
     iconLabelMap = getIconLabelMap()
-    for iconName, _ in iconLabelMap.iteritems():
+    for iconName, _ in iconLabelMap.items():
         iconNames.append(iconName)
         continue
     return iconNames
@@ -861,7 +861,7 @@ def drawResultImageFinal(width, height, result):
 
     rooms = []
     indexMap = {}
-    for roomIndex, labels in roomLabels.iteritems():
+    for roomIndex, labels in roomLabels.items():
         #print(roomIndex, labels)
         if roomIndex == roomRegions[0][0]:
             continue
