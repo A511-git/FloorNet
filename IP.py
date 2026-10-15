@@ -1202,6 +1202,16 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
     pass
 
   wallPoints, wallLines, wallPointOrientationLinesMap, wallPointNeighbors, augmentedPointMask = extractCorners(wallCornerHeatmaps, heatmapValueThresholdWall, gap=GAPS['wall_extraction'], augment=enableAugmentation, gt=gt)
+  if len(wallLines) == 0 and not gt:
+    for fallback_thresh in [0.35, 0.25, 0.15]:
+      if fallback_thresh >= heatmapValueThresholdWall:
+        continue
+      wp, wl, wmap, wnb, amask = extractCorners(wallCornerHeatmaps, fallback_thresh, gap=GAPS['wall_extraction'], augment=enableAugmentation, gt=gt)
+      if len(wl) > 0:
+        print('Adaptive wall threshold used: %.2f (found %d lines)' % (fallback_thresh, len(wl)))
+        wallPoints, wallLines, wallPointOrientationLinesMap, wallPointNeighbors, augmentedPointMask = wp, wl, wmap, wnb, amask
+        break
+
   doorPoints, doorLines, doorPointOrientationLinesMap, doorPointNeighbors, _ = extractCorners(doorCornerHeatmaps, heatmapValueThresholdDoor, gap=GAPS['door_extraction'], cornerType='door', gt=gt)
   iconPoints, iconLines, iconPointOrientationLinesMap, iconPointNeighbors, _ = extractCorners(iconCornerHeatmaps, heatmapValueThresholdIcon, gap=GAPS['icon_extraction'], cornerType='icon', gt=gt)
 
@@ -1210,7 +1220,8 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
       #print((pointIndex, np.array(point[:2]).astype(np.int32).tolist(), point[2], point[3]))
       continue
 
-    wallPoints, wallLines, wallPointOrientationLinesMap, wallPointNeighbors = filterWalls(wallPoints, wallLines)
+    if len(wallLines) > 0:
+      wallPoints, wallLines, wallPointOrientationLinesMap, wallPointNeighbors = filterWalls(wallPoints, wallLines)
     pass
 
 
@@ -1219,6 +1230,10 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
   print('the number of points', len(wallPoints), len(doorPoints), len(iconPoints))
   print('the number of lines', len(wallLines), len(doorLines), len(iconLines))
+
+  if len(wallLines) == 0:
+    print('No wall lines extracted from corner heatmaps')
+    return {}
 
 
   drawPoints(os.path.join(debug_prefix, "points.png"), width, height, wallPoints, densityImage, pointSize=3)
@@ -1458,6 +1473,7 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
 
     ## Exterior constraints
     exteriorLineSum = LpAffineExpression()
+    numExterior = 0
     for lineIndex in range(len(wallLines)):
       if lineIndex not in exteriorLines:
         continue
@@ -1465,8 +1481,10 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
       label = 0
       model += (l_dir_labels[lineIndex][0][label] + l_dir_labels[lineIndex][1][label] == w_l[lineIndex], 'exterior_wall_' + str(lineIndex))
       exteriorLineSum += w_l[lineIndex]
+      numExterior += 1
       continue
-    model += (exteriorLineSum >= 1, 'exterior_wall_sum')
+    if numExterior > 0:
+      model += (exteriorLineSum >= 1, 'exterior_wall_sum')
 
 
     ## Wall line room semantic objectives

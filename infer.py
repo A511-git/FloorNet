@@ -319,6 +319,8 @@ def main():
                         help="GPU device id to use ('0', '1', or '-1' for CPU).")
     parser.add_argument("--solver", choices=["ip", "qp"], default="ip",
                         help="Floorplan reconstruction solver: 'ip' (PuLP/CBC open-source, default) or 'qp' (Gurobi, requires license).")
+    parser.add_argument("--wall-threshold", type=float, default=0.5,
+                        help="Corner heatmap detection threshold for walls (default: 0.5).")
     parser.add_argument("--min-conf", type=float, default=0.1,
                         help="Confidence threshold for depth.npz points (default: 0.1).")
     parser.add_argument("--views", default=None,
@@ -434,7 +436,8 @@ def main():
                     pred_room,
                     densityImage=density_vis,
                     output_prefix=solver_prefix,
-                    debug_prefix=solver_prefix
+                    debug_prefix=solver_prefix,
+                    heatmapValueThresholdWall=args.wall_threshold
                 )
             except TypeError:
                 result_pred = reconstructFloorplan(
@@ -444,7 +447,8 @@ def main():
                     pred_icon,
                     pred_room,
                     densityImage=density_vis,
-                    debug_prefix=solver_prefix
+                    debug_prefix=solver_prefix,
+                    heatmapValueThresholdWall=args.wall_threshold
                 )
 
             # Export final rendered image, representation, doors, and icons

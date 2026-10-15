@@ -68,11 +68,14 @@ class ColorPalette:
             pass
 
 def sigmoid(values):
-    return 1 / (1 + np.exp(-values))
+    values = np.clip(values, -50.0, 50.0)
+    return 1.0 / (1.0 + np.exp(-values))
 
 def softmax(values):
-    values_exp = np.exp(values)
-    return values_exp / np.sum(values_exp, axis=-1, keepdims=True)
+    values_max = np.max(values, axis=-1, keepdims=True)
+    values_exp = np.exp(np.clip(values - values_max, -50.0, 50.0))
+    sum_exp = np.sum(values_exp, axis=-1, keepdims=True)
+    return values_exp / np.maximum(sum_exp, 1e-12)
 
 
 #Draw density image
