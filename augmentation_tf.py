@@ -10,10 +10,10 @@ from floorplan_utils import *
 def warpIndices(xs, ys, gridStride, gridWidth, gridHeight, width, height, gridXsTarget, gridYsTarget):
     numPoints = xs.shape[0]
 
-    minXs = xs / gridStride
-    minYs = ys / gridStride
-    maxXs = xs / gridStride + 1
-    maxYs = ys / gridStride + 1
+    minXs = xs // gridStride
+    minYs = ys // gridStride
+    maxXs = xs // gridStride + 1
+    maxYs = ys // gridStride + 1
 
     topLeft = tf.expand_dims(minYs * gridWidth + minXs, -1)
     topRight = tf.expand_dims(minYs * gridWidth + maxXs, -1)
@@ -50,32 +50,59 @@ def scaleIndices(xs, ys, min_x, min_y, max_x, max_y, width, height):
     ysTarget = tf.clip_by_value(tf.cast(tf.round(ysTarget), tf.int32), 0, height - 1)
     return xsTarget, ysTarget
 
+if 'xrange' not in globals():
+    xrange = range
+
 #Get coarse indices maps from 256x256 indices map
 def getCoarseIndicesMaps(indicesMap, width=256, height=256, batchIndex=0):
+    if isinstance(indicesMap, np.ndarray):
+        indicesMaps = []
+        for strideIndex in range(6):
+            stride = pow(2, strideIndex)
+            if strideIndex == 0:
+                indicesMaps.append((indicesMap + batchIndex * width * height).astype(np.int32))
+            else:
+                w_stride = int(width // stride)
+                h_stride = int(height // stride)
+                indicesMaps.append(((indicesMap // (width * stride)) * w_stride + (indicesMap % width) // stride + batchIndex * w_stride * h_stride).astype(np.int32))
+        return np.stack(indicesMaps, axis=0)
+
     indicesMaps = []
-    for strideIndex in xrange(6):
+    for strideIndex in range(6):
         stride = pow(2, strideIndex)
         if strideIndex == 0:
-            indicesMaps.append(indicesMap + batchIndex * width * height)
+            indicesMaps.append(tf.cast(indicesMap + batchIndex * width * height, tf.int32))
         else:
-            indicesMaps.append(indicesMap / (width * stride) * (width / stride) + indicesMap % width / stride + batchIndex * width / stride * height / stride)
+            w_stride = int(width // stride)
+            h_stride = int(height // stride)
+            indicesMaps.append(tf.cast((indicesMap // (width * stride)) * w_stride + (indicesMap % width) // stride + batchIndex * w_stride * h_stride, tf.int32))
             pass
-        #print(indicesMaps)
         continue
     indicesMaps = tf.stack(indicesMaps, axis=0)
     return indicesMaps
 
 #Get coarse indices maps from 256x256 indices map
 def getCoarseIndicesMapsBatch(indicesMap, width=256, height=256):
+    if isinstance(indicesMap, np.ndarray):
+        indicesMaps = []
+        for strideIndex in range(6):
+            stride = pow(2, strideIndex)
+            if strideIndex == 0:
+                indicesMaps.append(indicesMap.astype(np.int32))
+            else:
+                w_stride = int(width // stride)
+                indicesMaps.append(((indicesMap // (width * stride)) * w_stride + (indicesMap % width) // stride).astype(np.int32))
+        return np.stack(indicesMaps, axis=0)
+
     indicesMaps = []
-    for strideIndex in xrange(6):
+    for strideIndex in range(6):
         stride = pow(2, strideIndex)
         if strideIndex == 0:
-            indicesMaps.append(indicesMap)
+            indicesMaps.append(tf.cast(indicesMap, tf.int32))
         else:
-            indicesMaps.append(indicesMap / (width * stride) * (width / stride) + indicesMap % width / stride)
+            w_stride = int(width // stride)
+            indicesMaps.append(tf.cast((indicesMap // (width * stride)) * w_stride + (indicesMap % width) // stride, tf.int32))
             pass
-        #print(indicesMaps)
         continue
     indicesMaps = tf.stack(indicesMaps, axis=0)
     return indicesMaps
@@ -84,8 +111,8 @@ def getCoarseIndicesMapsBatch(indicesMap, width=256, height=256):
 def augmentWarping(pointcloudIndices, corners, heatmaps, gridStride=16, randomScale=4):
     width = WIDTH
     height = HEIGHT
-    gridWidth = int(width / gridStride + 1)
-    gridHeight = int(height / gridStride + 1)
+    gridWidth = int(width // gridStride + 1)
+    gridHeight = int(height // gridStride + 1)
 
     gridXs = tf.reshape(tf.tile(tf.expand_dims(tf.range(gridWidth) * gridStride, 0), [gridHeight, 1]), [-1])
     gridYs= tf.reshape(tf.tile(tf.expand_dims(tf.range(gridHeight) * gridStride, -1), [1, gridWidth]), [-1])
@@ -93,7 +120,7 @@ def augmentWarping(pointcloudIndices, corners, heatmaps, gridStride=16, randomSc
     gridXsTarget = tf.cast(gridXs, tf.float32) + tf.random_normal(stddev=randomScale, shape=[gridHeight * gridWidth])
     gridYsTarget = tf.cast(gridYs, tf.float32) + tf.random_normal(stddev=randomScale, shape=[gridHeight * gridWidth])
 
-    xsTarget, ysTarget = warpIndices(pointcloudIndices % width, pointcloudIndices / width, gridStride, gridWidth, gridHeight, width, height, gridXsTarget, gridYsTarget)
+    xsTarget, ysTarget = warpIndices(pointcloudIndices % width, pointcloudIndices // width, gridStride, gridWidth, gridHeight, width, height, gridXsTarget, gridYsTarget)
 
     newPointcloudIndices = tf.clip_by_value(ysTarget, 0, height - 1) * width + tf.clip_by_value(xsTarget, 0, width - 1)
 
@@ -106,7 +133,7 @@ def augmentScaling(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatur
     width = WIDTH
     height = HEIGHT
     xs = pointcloudIndices % width
-    ys = pointcloudIndices / width
+    ys = pointcloudIndices // width
 
     imageSize = tf.constant((height, width), dtype=np.float32)
     #randomScale = pow(2.0, tf.random.uniform([1]) - 1)
@@ -147,7 +174,7 @@ def augmentFlipping(pointcloud, pointcloudIndices, corners, heatmaps, imageFeatu
     #return pointcloud, pointcloudIndices, newCorners, heatmaps
 
     xsTarget = pointcloudIndices % width
-    ysTarget = pointcloudIndices / width
+    ysTarget = pointcloudIndices // width
 
     reverseChannelsY = tf.constant([-1, 2, 1, 0, 3, 7, 6, 5, 4, 10, 9, 8, 11, 12, 15, 14, 13, 16, 20, 19, 18, 17], dtype=tf.int32) + 1
     reverseChannelsX = tf.constant([-1, 0, 3, 2, 1, 5, 4, 7, 6, 8, 11, 10, 9, 12, 13, 16, 15, 14, 18, 17, 20, 19], dtype=tf.int32) + 1
