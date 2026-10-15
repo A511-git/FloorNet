@@ -1687,7 +1687,28 @@ def reconstructFloorplan(wallCornerHeatmaps, doorCornerHeatmaps, iconCornerHeatm
       pass
 
     model += obj
-    model.solve()
+
+    solver = None
+    if os.path.exists('/usr/bin/cbc'):
+      solver = PULP_CBC_CMD(path='/usr/bin/cbc', msg=0)
+    elif os.path.exists('/kaggle/working/env2/bin/cbc'):
+      solver = PULP_CBC_CMD(path='/kaggle/working/env2/bin/cbc', msg=0)
+    elif pulp.LpSolverDefault is not None:
+      solver = pulp.LpSolverDefault
+    else:
+      for candidate in [PULP_CBC_CMD(msg=0), GLPK_CMD(msg=0)]:
+        try:
+          if candidate.available():
+            solver = candidate
+            break
+        except Exception:
+          pass
+
+    if solver is None:
+      print("ERROR: No solver found for PuLP! Run in Kaggle: !apt-get update && apt-get install -y coinor-cbc")
+      return {}
+
+    model.solve(solver)
 
     #model.writeLP(debug_prefix + '/model.lp')
     print('Optimization information', LpStatus[model.status], value(model.objective))
